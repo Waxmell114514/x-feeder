@@ -1,0 +1,36 @@
+# Config used by `xfeeder demo`: same pipeline, fixture data, no keys.
+db_path: .xfeeder/demo/demo.db
+output_dir: .xfeeder/demo
+output_lang: zh
+
+issue_files:
+  - "issues/*.yaml"
+
+cohorts:
+  official:  {blend_weight: 0.35, authority_weighting: 1.0, engagement_weighting: 0.15,
+              handles: [federalreserve, nyfed, stlouisfed]}
+  pro_media: {blend_weight: 0.25, authority_weighting: 0.85, engagement_weighting: 0.5,
+              handles: [Reuters, business, NickTimiraos, Caixin]}
+  en_kol:    {blend_weight: 0.15, authority_weighting: 0.6, min_followers: 20000,
+              handles: [biancoresearch, MacroAlf_demo, RatesTrader_demo]}
+  cn_kol:    {blend_weight: 0.10, authority_weighting: 0.6, min_followers: 10000,
+              handles: [hongguan_laowang, zhaisheng_note, meilian_watch]}
+  crowd:     {blend_weight: 0.15, authority_weighting: 0.0, max_followers: 20000}
+
+thresholds:
+  cluster_similarity: 0.55
+  min_cluster_share: 0.08
+  max_delegates_per_cohort: 3
+  consensus_shift_alert: 0.08
+  divergence_alert: 0.15
+
+llm:
+  offline: true
+  cache_dir: .xfeeder/demo/llm-cache
+
+source:
+  provider: fixture
+  fixture_path: fixtures/fed_rate_demo.jsonl
+
+alerts:
+  enabled: false

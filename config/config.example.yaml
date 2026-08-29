@@ -1,0 +1,133 @@
+# xfeeder configuration
+# ---------------------------------------------------------------------
+# Everything here is tunable at runtime; nothing in the code hard-codes a
+# handle, a threshold or a weight.
+
+db_path: .xfeeder/feeder.db
+output_dir: out
+output_lang: zh            # zh | en  - language of every synthesised sentence
+
+issue_files:
+  - "issues/*.yaml"
+
+# ---------------------------------------------------------------------
+# Source tiers.
+#
+# `handles` is the allowlist and is the ONLY thing that should ever put an
+# account into `official`. Everything else is inferred, and inference is
+# allowed to be wrong; officialdom is not.
+#
+# authority_weighting: 0 = one account one vote, 1 = fully follower-weighted.
+# engagement_weighting: how much likes/RTs amplify. A Fed statement with
+#                       three likes is still the Fed, hence 0.15 there.
+# blend_weight:         this tier's share of the cross-tier blended number.
+# ---------------------------------------------------------------------
+cohorts:
+  official:
+    blend_weight: 0.35
+    authority_weighting: 1.0
+    engagement_weighting: 0.15
+    keywords: ["central bank", "official account", "federal reserve", "ministry of"]
+    handles:
+      - federalreserve
+      - nyfed
+      - stlouisfed
+      - chicagofed
+      - sffed
+      - USTreasury
+      - ecb
+      - bankofengland
+      - bankofjapan
+      - PBOC_China
+
+  pro_media:
+    blend_weight: 0.25
+    authority_weighting: 0.85
+    engagement_weighting: 0.5
+    keywords: ["reuters", "bloomberg", "wsj", "correspondent", "reporter covering",
+               "editor at", "记者", "财经媒体"]
+    handles:
+      - Reuters
+      - ReutersBiz
+      - business          # Bloomberg
+      - economics         # Bloomberg Economics
+      - WSJmarkets
+      - FinancialTimes
+      - NickTimiraos      # WSJ Fed reporter - the "Fed whisperer"
+      - SteveLiesman
+      - CNBCnow
+      - Caixin
+      - YicaiChina
+
+  en_kol:
+    blend_weight: 0.15
+    authority_weighting: 0.6
+    engagement_weighting: 1.0
+    min_followers: 20000
+    langs: [en]
+    handles:
+      - biancoresearch
+      - LizAnnSonders
+      - GregDaco
+      - zerohedge
+      - Ninja_Economics
+
+  cn_kol:
+    blend_weight: 0.10
+    authority_weighting: 0.6
+    engagement_weighting: 1.0
+    min_followers: 10000
+    langs: [zh]
+    handles: []          # fill in the Chinese-language accounts you follow
+
+  crowd:
+    blend_weight: 0.15
+    # 0.0 on purpose: inside the crowd tier, a 40-follower account and a
+    # 40,000-follower account count the same. This is the whole point.
+    authority_weighting: 0.0
+    engagement_weighting: 1.0
+    max_followers: 20000
+
+# ---------------------------------------------------------------------
+weighting:
+  engagement_cap: 4.0        # a viral post is worth a few posts, not a few thousand
+  author_cap_pct: 0.05       # no account may exceed 5% of its tier
+  duplicate_damping: true    # n copies of one line count as sqrt(n) voices
+  min_account_age_days: 30
+  new_account_penalty: 0.35
+  low_follower_floor: 5
+  bot_penalty: 0.4
+
+thresholds:
+  cluster_similarity: 0.62
+  min_cluster_share: 0.06
+  max_delegates_per_cohort: 4
+  consensus_shift_alert: 0.08   # blended move that is worth a ping
+  divergence_alert: 0.20        # tier-vs-tier gap that is worth a ping
+  volume_spike_ratio: 2.5
+
+llm:
+  extract_model: claude-opus-5
+  synthesize_model: claude-opus-5
+  extract_effort: low           # extraction is mechanical; do not overpay for it
+  synthesize_effort: high
+  extract_batch_size: 20
+  max_concurrency: 4
+  cache_dir: .xfeeder/llm-cache
+  offline: false
+
+embeddings:
+  provider: hashing             # hashing (no key) | voyage | openai
+  model: voyage-3.5
+  dim: 512
+
+source:
+  provider: x_api               # x_api | fixture
+  bearer_token_env: X_BEARER_TOKEN
+  exclude_retweets: true
+  max_pages: 5
+
+alerts:
+  enabled: false
+  webhook_url_env: XFEEDER_WEBHOOK_URL   # Slack/Discord/any JSON {"text": ...} sink
+  min_severity: warn

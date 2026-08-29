@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="{{ 'zh-CN' if zh else 'en' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ issue.title_zh or issue.title }} · xfeeder</title>
+<style>
+  :root{
+    --bg:#fbfaf8; --panel:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b;
+    --line:#e6e3dd; --accent:#1f6feb; --warn:#b26a00; --crit:#c0392b;
+    --bar:#dfe6f5; --barfill:#4a7fd4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#141517; --panel:#1c1e21; --ink:#e9e7e3; --muted:#9a9894;
+           --line:#2c2f33; --accent:#6ea8ff; --bar:#252a33; --barfill:#5b8ad9; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC",
+       "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;}
+  .wrap{max-width:960px;margin:0 auto;padding:36px 20px 80px}
+  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:28px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  h1{font-size:22px;margin:.35em 0 .5em;font-weight:650;line-height:1.35}
+  .headline{font-size:19px;font-weight:600;line-height:1.5;margin:14px 0 8px}
+  .meta{color:var(--muted);font-size:13px}
+  .big{display:flex;align-items:baseline;gap:12px;margin:18px 0 4px}
+  .big .num{font-size:44px;font-weight:680;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .spark{width:100%;height:80px;color:var(--barfill);display:block;margin:4px 0 0}
+  section{margin:34px 0}
+  h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+     font-weight:600;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;
+     padding:6px 10px 6px 0;border-bottom:1px solid var(--line)}
+  td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+  td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .track{background:var(--bar);height:8px;border-radius:4px;overflow:hidden;min-width:110px}
+  .fill{background:var(--barfill);height:100%}
+  .tier{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+        padding:18px 20px;margin:0 0 14px}
+  .tier h3{margin:0;font-size:15px;font-weight:650}
+  .tier .lede{color:var(--ink);margin:8px 0 4px;font-size:14.5px}
+  .delegate{border-left:3px solid var(--barfill);padding:2px 0 2px 14px;margin:18px 0 0}
+  .dname{font-weight:650}
+  .dshare{color:var(--muted);font-size:12.5px;font-weight:400;margin-left:8px;
+          font-variant-numeric:tabular-nums}
+  .verdict{font-size:16px;font-weight:600;margin:6px 0 8px;line-height:1.5}
+  .rat{margin:0;padding-left:18px;color:var(--ink)}
+  .rat li{margin:2px 0}
+  .caveat{color:var(--muted);font-size:13px;margin-top:8px}
+  .quotes{margin-top:10px;font-size:13px}
+  .q{color:var(--muted);margin:4px 0;padding-left:12px;border-left:2px solid var(--line)}
+  .q a{color:var(--accent);text-decoration:none}
+  .chips{margin:10px 0 0;font-size:12.5px;color:var(--muted)}
+  .chip{display:inline-block;margin-right:12px;font-variant-numeric:tabular-nums}
+  .alert{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .dot{width:8px;height:8px;border-radius:50%;margin-top:8px;flex:0 0 8px}
+  .critical .dot{background:var(--crit)} .warn .dot{background:var(--warn)}
+  .info .dot{background:var(--accent)}
+  .alert .t{font-weight:600}
+  .alert .d{color:var(--muted);font-size:13px}
+  ul.notes{padding-left:18px;margin:0} ul.notes li{margin:6px 0}
+  footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);
+         color:var(--muted);font-size:12.5px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+</style>
+</head>
+<body><div class="wrap">
+
+<header>
+  <div class="eyebrow">xfeeder · {{ 'consensus snapshot' }}</div>
+  <h1>{{ issue.title_zh or issue.title }}</h1>
+  <div class="headline">{{ snap.global_headline }}</div>
+  {% if snap.blended_probability is not none %}
+  <div class="big">
+    <div class="num">{{ snap.blended_probability|pct }}</div>
+    <div class="meta">{{ '综合隐含概率（跨层级加权）' if zh else 'blended implied probability across tiers' }}</div>
+  </div>
+  {{ spark|safe }}
+  {% endif %}
+  <div class="meta">
+    {{ snap.ts.strftime('%Y-%m-%d %H:%M UTC') }} ·
+    {{ snap.n_posts }} {{ '条发言' if zh else 'posts' }} ·
+    {{ snap.n_authors }} {{ '个账号' if zh else 'accounts' }} ·
+    {{ '窗口' if zh else 'window' }} {{ snap.window_hours }}h
+  </div>
+</header>
+
+{% if snap.notes %}
+<section>
+  <h2>{{ '解读' if zh else 'Reading' }}</h2>
+  <ul class="notes">{% for n in snap.notes %}<li>{{ n }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+{% if alerts %}
+<section>
+  <h2>{{ '信号' if zh else 'Signals' }}</h2>
+  {% for a in alerts %}
+  <div class="alert {{ a.severity }}">
+    <div class="dot"></div>
+    <div><div class="t">{{ a.title }}</div>
+      {% if a.detail %}<div class="d">{{ a.detail }}</div>{% endif %}</div>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<section>
+  <h2>{{ '各层级读数' if zh else 'By source tier' }}</h2>
+  <table>
+    <thead><tr>
+      <th>{{ '层级' if zh else 'Tier' }}</th>
+      <th class="num">{{ '隐含' if zh else 'Implied' }}</th>
+      <th style="width:35%"></th>
+      <th class="num">{{ '发言/账号' if zh else 'Posts/accts' }}</th>
+      <th class="num">{{ '一致度' if zh else 'Agreement' }}</th>
+      <th class="num">{{ '置信' if zh else 'Confidence' }}</th>
+    </tr></thead>
+    <tbody>
+    {% for c in cohorts %}
+      <tr>
+        <td>{{ c.label }}</td>
+        <td class="num">{{ c.v.probability|pct }}</td>
+        <td>{% if c.v.probability is not none %}
+          <div class="track"><div class="fill" style="width:{{ (c.v.probability*100)|round(1) }}%"></div></div>
+        {% endif %}</td>
+        <td class="num">{{ c.v.n_posts }}/{{ c.v.n_authors }}</td>
+        <td class="num">{{ c.v.agreement|pct }}</td>
+        <td class="num">{{ c.v.confidence|pct }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>{{ '合成意见领袖' if zh else 'Synthetic opinion leaders' }}</h2>
+  {% for c in cohorts %}
+  <div class="tier">
+    <h3>{{ c.label }}</h3>
+    <div class="lede">{{ c.v.headline }}</div>
+    <div class="chips">
+      {% for s in c.stances %}<span class="chip">{{ s.label }} {{ s.share|pct }}</span>{% endfor %}
+    </div>
+    {% for d in c.v.delegates %}
+    <div class="delegate">
+      <div><span class="dname">{{ d.name }}</span><span class="dshare">
+        {{ d.share|pct }}{{ '的加权声量' if zh else ' of tier voice' }} ·
+        {{ d.n_posts }}{{ '条' if zh else ' posts' }} /
+        {{ d.n_authors }}{{ '个账号' if zh else ' accounts' }}
+        {%- if d.probability is not none %} · {{ '组内均值' if zh else 'mean' }} {{ d.probability|pct }}{% endif %}
+      </span></div>
+      <div class="verdict">{{ d.verdict }}</div>
+      {% if d.rationale %}<ul class="rat">
+        {% for r in d.rationale %}<li>{{ r }}</li>{% endfor %}
+      </ul>{% endif %}
+      {% if d.caveat %}<div class="caveat">{{ '反转条件：' if zh else 'Would flip on: ' }}{{ d.caveat }}</div>{% endif %}
+      {% if d.quotes %}<div class="quotes">
+        {% for q in d.quotes %}
+        <div class="q">@{{ q.handle }}：{{ q.text[:200] }}
+          {% if q.url %}<a href="{{ q.url }}" target="_blank" rel="noopener">↗</a>{% endif %}</div>
+        {% endfor %}
+      </div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</section>
+
+{% if snap.divergences %}
+<section>
+  <h2>{{ '层级间分歧' if zh else 'Cross-tier divergence' }}</h2>
+  <ul class="notes">{% for d in snap.divergences %}<li>{{ d.note }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<footer>
+  {{ '由 xfeeder 生成' if zh else 'Generated by xfeeder' }} · {{ generated }} ·
+  <code>{{ issue.id }}</code><br>
+  {{ '所有份额、账号数与概率均由确定性统计计算得出；模型只负责把这些数字写成句子。'
+     if zh else
+     'Every share, count and probability here is computed arithmetically; the model only turns those numbers into sentences.' }}
+</footer>
+
+</div></body></html>

@@ -1,0 +1,29 @@
+[project]
+name = "xfeeder"
+version = "0.1.0"
+description = "Supernova-Era consensus engine: turn X/Twitter noise into a small set of synthetic opinion leaders per issue."
+requires-python = ">=3.10"
+dependencies = [
+    "anthropic>=1.0.0",
+    "pydantic>=2.6",
+    "PyYAML>=6.0",
+    "numpy>=1.26",
+    "Jinja2>=3.1",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+xfeeder = "xfeeder.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+xfeeder = ["render/templates/*.html"]

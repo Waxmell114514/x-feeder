@@ -1,0 +1,83 @@
+# One issue = one question the machine is trying to answer about the world.
+#
+# The question must be answerable from a single post in isolation, because
+# that is how the extractor reads them. "Will the Fed hike in September" is a
+# good question; "what is the state of the economy" is not.
+issues:
+  - id: fed-rate
+    title: "Probability the FOMC raises rates at the next meeting"
+    title_zh: "美联储下次会议加息概率"
+    question: >
+      Will the FOMC raise the federal funds target range at its next scheduled
+      meeting? A post supports "hike" if it argues for or prices a rate
+      increase, "hold" if it argues rates stay unchanged, "cut" if it argues
+      for a decrease.
+    background: >
+      Policy rate is currently 4.25-4.50%. The last three meetings were holds.
+      Core PCE has been running above target and the labour market has been
+      resilient. Market pricing has been oscillating between hold and hike.
+    window_hours: 24
+    half_life_hours: 12      # a 12h-old take is worth half a fresh one
+    output_lang: zh
+
+    axis:
+      - id: hike
+        label: "raise rates"
+        label_zh: "加息"
+        anchor: 0.90         # where this side sits on the 0-1 probability axis
+        keywords: ["加息", "要加", "hike", "raise rates", "rate rise", "tighten",
+                   "hawkish", "鹰派", "收紧", "上调利率"]
+      - id: hold
+        label: "hold rates steady"
+        label_zh: "按兵不动"
+        anchor: 0.12
+        keywords: ["不加息", "不会加息", "按兵不动", "维持不变", "利率不变", "暂停",
+                   "no hike", "not hiking", "won't hike", "stay on hold", "on hold",
+                   "hold steady", "hold", "no change", "unchanged", "pause",
+                   "data dependent", "观望", "不变"]
+      - id: cut
+        label: "cut rates"
+        label_zh: "降息"
+        anchor: 0.02
+        keywords: ["降息", "减息", "rate cut", "cut rates", "cutting", "easing",
+                   "宽松", "鸽派", "dovish pivot", "下调利率"]
+      - id: unclear
+        label: "no clear position"
+        label_zh: "态度不明"
+
+    quantity:
+      id: p_hike
+      name: "P(hike at next meeting)"
+      description: >
+        The probability the speaker assigns to a rate increase at the next
+        FOMC meeting. Includes probabilities the speaker attributes to market
+        pricing ("futures imply 40%"), which count as market_pricing.
+
+    # Each query is bound to the tier it is expected to return. `from:` queries
+    # are trusted to pin their tier; broad queries are not, and the classifier
+    # re-derives the tier for those accounts.
+    queries:
+      - cohort: official
+        tag: fed-rate:official
+        query: "from:federalreserve OR from:nyfed OR from:stlouisfed OR from:sffed"
+        max_results: 50
+      - cohort: pro_media
+        tag: fed-rate:media
+        query: "(from:Reuters OR from:business OR from:NickTimiraos OR from:SteveLiesman OR from:economics) (fed OR fomc OR rates OR \"rate hike\")"
+        max_results: 100
+      - cohort: en_kol
+        tag: fed-rate:en_kol
+        query: "(FOMC OR \"rate hike\" OR \"fed funds\") (min_faves:150) lang:en -is:retweet"
+        max_results: 100
+      - cohort: cn_kol
+        tag: fed-rate:cn_kol
+        query: "(美联储 OR 加息 OR 降息 OR 议息) (min_faves:50) lang:zh -is:retweet"
+        max_results: 100
+      - cohort: crowd
+        tag: fed-rate:crowd_en
+        query: "(FOMC OR \"rate hike\" OR \"the fed\") lang:en -is:retweet -min_faves:150"
+        max_results: 100
+      - cohort: crowd
+        tag: fed-rate:crowd_zh
+        query: "(美联储 OR 加息 OR 议息) lang:zh -is:retweet -min_faves:50"
+        max_results: 100

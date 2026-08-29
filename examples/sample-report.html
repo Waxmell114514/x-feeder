@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>美联储下次会议加息概率 · xfeeder</title>
+<style>
+  :root{
+    --bg:#fbfaf8; --panel:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b;
+    --line:#e6e3dd; --accent:#1f6feb; --warn:#b26a00; --crit:#c0392b;
+    --bar:#dfe6f5; --barfill:#4a7fd4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#141517; --panel:#1c1e21; --ink:#e9e7e3; --muted:#9a9894;
+           --line:#2c2f33; --accent:#6ea8ff; --bar:#252a33; --barfill:#5b8ad9; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans CJK SC",
+       "PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;}
+  .wrap{max-width:960px;margin:0 auto;padding:36px 20px 80px}
+  header{border-bottom:1px solid var(--line);padding-bottom:22px;margin-bottom:28px}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  h1{font-size:22px;margin:.35em 0 .5em;font-weight:650;line-height:1.35}
+  .headline{font-size:19px;font-weight:600;line-height:1.5;margin:14px 0 8px}
+  .meta{color:var(--muted);font-size:13px}
+  .big{display:flex;align-items:baseline;gap:12px;margin:18px 0 4px}
+  .big .num{font-size:44px;font-weight:680;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .spark{width:100%;height:80px;color:var(--barfill);display:block;margin:4px 0 0}
+  section{margin:34px 0}
+  h2{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+     font-weight:600;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{text-align:left;font-weight:600;color:var(--muted);font-size:12px;
+     padding:6px 10px 6px 0;border-bottom:1px solid var(--line)}
+  td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+  td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .track{background:var(--bar);height:8px;border-radius:4px;overflow:hidden;min-width:110px}
+  .fill{background:var(--barfill);height:100%}
+  .tier{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+        padding:18px 20px;margin:0 0 14px}
+  .tier h3{margin:0;font-size:15px;font-weight:650}
+  .tier .lede{color:var(--ink);margin:8px 0 4px;font-size:14.5px}
+  .delegate{border-left:3px solid var(--barfill);padding:2px 0 2px 14px;margin:18px 0 0}
+  .dname{font-weight:650}
+  .dshare{color:var(--muted);font-size:12.5px;font-weight:400;margin-left:8px;
+          font-variant-numeric:tabular-nums}
+  .verdict{font-size:16px;font-weight:600;margin:6px 0 8px;line-height:1.5}
+  .rat{margin:0;padding-left:18px;color:var(--ink)}
+  .rat li{margin:2px 0}
+  .caveat{color:var(--muted);font-size:13px;margin-top:8px}
+  .quotes{margin-top:10px;font-size:13px}
+  .q{color:var(--muted);margin:4px 0;padding-left:12px;border-left:2px solid var(--line)}
+  .q a{color:var(--accent);text-decoration:none}
+  .chips{margin:10px 0 0;font-size:12.5px;color:var(--muted)}
+  .chip{display:inline-block;margin-right:12px;font-variant-numeric:tabular-nums}
+  .alert{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+  .dot{width:8px;height:8px;border-radius:50%;margin-top:8px;flex:0 0 8px}
+  .critical .dot{background:var(--crit)} .warn .dot{background:var(--warn)}
+  .info .dot{background:var(--accent)}
+  .alert .t{font-weight:600}
+  .alert .d{color:var(--muted);font-size:13px}
+  ul.notes{padding-left:18px;margin:0} ul.notes li{margin:6px 0}
+  footer{margin-top:50px;padding-top:18px;border-top:1px solid var(--line);
+         color:var(--muted);font-size:12.5px}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+</style>
+</head>
+<body><div class="wrap">
+
+<header>
+  <div class="eyebrow">xfeeder · consensus snapshot</div>
+  <h1>美联储下次会议加息概率</h1>
+  <div class="headline">离线模式：以下为纯统计结果，未经语言合成。</div>
+  
+  <div class="big">
+    <div class="num">42%</div>
+    <div class="meta">综合隐含概率（跨层级加权）</div>
+  </div>
+  
+  
+  <div class="meta">
+    2026-08-29 10:20 UTC ·
+    57 条发言 ·
+    47 个账号 ·
+    窗口 24h
+  </div>
+</header>
+
+
+<section>
+  <h2>解读</h2>
+  <ul class="notes"><li>官方信息：100% 的加权声量倾向「按兵不动」（1 个账号），隐含概率 12%。</li><li>专业媒体：70% 的加权声量倾向「加息」（5 个账号），隐含概率 58%。</li><li>英语区 KOL：50% 的加权声量倾向「加息」（6 个账号），隐含概率 52%。</li><li>中文区 KOL：80% 的加权声量倾向「加息」（5 个账号），隐含概率 74%。</li><li>中文区 KOL 比 官方信息 高 62%（74% vs 12%）</li><li>专业媒体 比 官方信息 高 46%（58% vs 12%）</li><li>大众用户 比 官方信息 高 41%（53% vs 12%）</li></ul>
+</section>
+
+
+
+<section>
+  <h2>信号</h2>
+  
+  <div class="alert critical">
+    <div class="dot"></div>
+    <div><div class="t">中文区 KOL 比 官方信息 高 62%（74% vs 12%）</div>
+      </div>
+  </div>
+  
+  <div class="alert critical">
+    <div class="dot"></div>
+    <div><div class="t">专业媒体 比 官方信息 高 46%（58% vs 12%）</div>
+      </div>
+  </div>
+  
+  <div class="alert critical">
+    <div class="dot"></div>
+    <div><div class="t">大众用户 比 官方信息 高 41%（53% vs 12%）</div>
+      </div>
+  </div>
+  
+  <div class="alert critical">
+    <div class="dot"></div>
+    <div><div class="t">英语区 KOL 比 官方信息 高 40%（52% vs 12%）</div>
+      </div>
+  </div>
+  
+  <div class="alert critical">
+    <div class="dot"></div>
+    <div><div class="t">大众读数高于官方指引 41%（53% vs 12%）</div>
+      <div class="d">大众用户：54% 的加权声量倾向「加息」（30 个账号），隐含概率 53%。 || 官方信息：100% 的加权声量倾向「按兵不动」（1 个账号），隐含概率 12%。</div></div>
+  </div>
+  
+  <div class="alert warn">
+    <div class="dot"></div>
+    <div><div class="t">中文区 KOL 比 英语区 KOL 高 22%（74% vs 52%）</div>
+      </div>
+  </div>
+  
+  <div class="alert warn">
+    <div class="dot"></div>
+    <div><div class="t">中文区 KOL 比 大众用户 高 21%（74% vs 53%）</div>
+      </div>
+  </div>
+  
+  <div class="alert warn">
+    <div class="dot"></div>
+    <div><div class="t">中文区 KOL 比 专业媒体 高 16%（74% vs 58%）</div>
+      </div>
+  </div>
+  
+</section>
+
+
+<section>
+  <h2>各层级读数</h2>
+  <table>
+    <thead><tr>
+      <th>层级</th>
+      <th class="num">隐含</th>
+      <th style="width:35%"></th>
+      <th class="num">发言/账号</th>
+      <th class="num">一致度</th>
+      <th class="num">置信</th>
+    </tr></thead>
+    <tbody>
+    
+      <tr>
+        <td>官方信息</td>
+        <td class="num">12%</td>
+        <td>
+          <div class="track"><div class="fill" style="width:12.0%"></div></div>
+        </td>
+        <td class="num">2/1</td>
+        <td class="num">100%</td>
+        <td class="num">49%</td>
+      </tr>
+    
+      <tr>
+        <td>专业媒体</td>
+        <td class="num">58%</td>
+        <td>
+          <div class="track"><div class="fill" style="width:58.3%"></div></div>
+        </td>
+        <td class="num">6/5</td>
+        <td class="num">11%</td>
+        <td class="num">28%</td>
+      </tr>
+    
+      <tr>
+        <td>英语区 KOL</td>
+        <td class="num">52%</td>
+        <td>
+          <div class="track"><div class="fill" style="width:52.5%"></div></div>
+        </td>
+        <td class="num">6/6</td>
+        <td class="num">0%</td>
+        <td class="num">24%</td>
+      </tr>
+    
+      <tr>
+        <td>中文区 KOL</td>
+        <td class="num">74%</td>
+        <td>
+          <div class="track"><div class="fill" style="width:74.4%"></div></div>
+        </td>
+        <td class="num">5/5</td>
+        <td class="num">28%</td>
+        <td class="num">30%</td>
+      </tr>
+    
+      <tr>
+        <td>大众用户</td>
+        <td class="num">53%</td>
+        <td>
+          <div class="track"><div class="fill" style="width:53.1%"></div></div>
+        </td>
+        <td class="num">38/30</td>
+        <td class="num">18%</td>
+        <td class="num">59%</td>
+      </tr>
+    
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>合成意见领袖</h2>
+  
+  <div class="tier">
+    <h3>官方信息</h3>
+    <div class="lede">官方信息：100% 的加权声量倾向「按兵不动」（1 个账号），隐含概率 12%。</div>
+    <div class="chips">
+      <span class="chip">按兵不动 100%</span>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">按兵不动派·通胀</span><span class="dshare">
+        100%的加权声量 ·
+        2条 /
+        1个账号
+      </span></div>
+      <div class="verdict">我们相信按兵不动。</div>
+      <ul class="rat">
+        <li>按兵不动：通胀（hold）</li><li>按兵不动：通胀（data dependent、unchanged）</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@federalreserve：Chair&#39;s remarks: we will act as appropriate to sustain the expansion. We are prepared to hold rates steady for as long as the data warrant, and to move if the inflation picture deteriorates.
+          <a href="https://x.com/federalreserve/status/700000000000000274" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="tier">
+    <h3>专业媒体</h3>
+    <div class="lede">专业媒体：70% 的加权声量倾向「加息」（5 个账号），隐含概率 58%。</div>
+    <div class="chips">
+      <span class="chip">加息 70%</span><span class="chip">按兵不动 30%</span>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">加息派·通胀</span><span class="dshare">
+        70%的加权声量 ·
+        4条 /
+        4个账号 · 组内均值 39%
+      </span></div>
+      <div class="verdict">我们相信加息。</div>
+      <ul class="rat">
+        <li>加息：通胀（hike）</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@NickTimiraos：Officials are unlikely to have made up their minds. The internal debate is between holding through year-end and one more insurance hike; nobody senior is arguing for cuts.
+          <a href="https://x.com/NickTimiraos/status/700000000000001096" target="_blank" rel="noopener">↗</a></div>
+        
+        <div class="q">@business：Traders boosted bets on another Fed hike after core CPI came in hotter than forecast. Swaps now price about 40% odds of a September increase.
+          <a href="https://x.com/business/status/700000000000000959" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">按兵不动派·市场定价</span><span class="dshare">
+        30%的加权声量 ·
+        2条 /
+        2个账号
+      </span></div>
+      <div class="verdict">我们相信按兵不动。</div>
+      <ul class="rat">
+        <li>按兵不动：市场定价（按兵不动）</li><li>按兵不动：hold、no change</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@Caixin：美联储9月议息前瞻：市场定价加息概率升至四成，但多数受访经济学家仍预计按兵不动。
+          <a href="https://x.com/Caixin/status/700000000000001370" target="_blank" rel="noopener">↗</a></div>
+        
+        <div class="q">@Reuters：ANALYSIS: Economists polled by Reuters overwhelmingly expect the Fed to hold in September. 58 of 71 respondents see no change; 11 see a 25bp hike.
+          <a href="https://x.com/Reuters/status/700000000000001507" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="tier">
+    <h3>英语区 KOL</h3>
+    <div class="lede">英语区 KOL：50% 的加权声量倾向「加息」（6 个账号），隐含概率 52%。</div>
+    <div class="chips">
+      <span class="chip">加息 50%</span><span class="chip">按兵不动 50%</span>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">加息派·通胀</span><span class="dshare">
+        50%的加权声量 ·
+        3条 /
+        3个账号 · 组内均值 60%
+      </span></div>
+      <div class="verdict">我们相信加息。</div>
+      <ul class="rat">
+        <li>加息：通胀（hawkish、hike）</li><li>加息：通胀（hawkish）</li><li>加息：通胀（hike）</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@Ninja_Economics：The inflation data has re-accelerated and the labour market never broke. I make it about 60% they hike, and I think the committee is more hawkish than the dots imply.
+          <a href="https://x.com/Ninja_Economics/status/700000000000002055" target="_blank" rel="noopener">↗</a></div>
+        
+        <div class="q">@RatesTrader_demo：Positioning matters more than the CPI print here. Everyone is short front-end. One hot number does not get you a hike, it gets you a hawkish hold.
+          <a href="https://x.com/RatesTrader_demo/status/700000000000001918" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">按兵不动派·通胀</span><span class="dshare">
+        17%的加权声量 ·
+        1条 /
+        1个账号
+      </span></div>
+      <div class="verdict">我们相信按兵不动。</div>
+      <ul class="rat">
+        <li>按兵不动：通胀（hold）</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@LizAnnSonders_demo：Watch the breadth of the inflation data, not the headline. On a trimmed-mean basis the picture is still disinflationary. That argues for holding rates steady.
+          <a href="https://x.com/LizAnnSonders_demo/status/700000000000002192" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">按兵不动派·信贷与流动性</span><span class="dshare">
+        17%的加权声量 ·
+        1条 /
+        1个账号
+      </span></div>
+      <div class="verdict">我们相信按兵不动。</div>
+      <ul class="rat">
+        <li>按兵不动：信贷与流动性（hold、no hike）</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@MacroAlf_demo：No hike. Full stop. Bank credit growth is negative in real terms, and the Fed has never tightened into a credit contraction of this size. They hold and they wait.
+          <a href="https://x.com/MacroAlf_demo/status/700000000000001781" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="tier">
+    <h3>中文区 KOL</h3>
+    <div class="lede">中文区 KOL：80% 的加权声量倾向「加息」（5 个账号），隐含概率 74%。</div>
+    <div class="chips">
+      <span class="chip">加息 80%</span><span class="chip">按兵不动 20%</span>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">加息派·通胀</span><span class="dshare">
+        80%的加权声量 ·
+        4条 /
+        4个账号
+      </span></div>
+      <div class="verdict">我们相信加息。</div>
+      <ul class="rat">
+        <li>加息：通胀（加息）</li><li>加息：通胀（鹰派）</li><li>加息：加息</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@meilian_watch：CME FedWatch 显示9月加息概率已升至38%。历史上这个位置继续往上走的次数不多，但这次通胀结构确实更黏。我给50%。
+          <a href="https://x.com/meilian_watch/status/700000000000002877" target="_blank" rel="noopener">↗</a></div>
+        
+        <div class="q">@hongguan_laowang：核心通胀连续三个月反弹，就业也没塌，我倾向于认为9月会加息一次。市场现在只定价四成，明显低估了鲍威尔的鹰派程度。
+          <a href="https://x.com/hongguan_laowang/status/700000000000002603" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">按兵不动派·通胀</span><span class="dshare">
+        20%的加权声量 ·
+        1条 /
+        1个账号
+      </span></div>
+      <div class="verdict">我们相信按兵不动。</div>
+      <ul class="rat">
+        <li>按兵不动：通胀（按兵不动）</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@zhaisheng_note：别被单月CPI带节奏。美国信贷增速已经是负的，这个位置加息等于自找麻烦。我的判断是按兵不动，但声明会写得很鹰。
+          <a href="https://x.com/zhaisheng_note/status/700000000000002740" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+  </div>
+  
+  <div class="tier">
+    <h3>大众用户</h3>
+    <div class="lede">大众用户：54% 的加权声量倾向「加息」（30 个账号），隐含概率 53%。</div>
+    <div class="chips">
+      <span class="chip">加息 54%</span><span class="chip">按兵不动 38%</span><span class="chip">降息 8%</span>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">加息派·通胀</span><span class="dshare">
+        32%的加权声量 ·
+        8条 /
+        8个账号
+      </span></div>
+      <div class="verdict">我们相信加息。</div>
+      <ul class="rat">
+        <li>加息：通胀（加息、要加）</li><li>加息：通胀（hike）</li><li>加息：通胀（raise rates）</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@user_zh_0：菜价又涨了，肯定要加息的，别做梦了。
+          <a href="https://x.com/user_zh_0/status/700000000000005480" target="_blank" rel="noopener">↗</a></div>
+        
+        <div class="q">@user_en_5：Insurance, food, electricity all up. Hike is coming whether the market likes it or not.
+          <a href="https://x.com/user_en_5/status/700000000000004110" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">按兵不动派·no hike</span><span class="dshare">
+        22%的加权声量 ·
+        6条 /
+        6个账号
+      </span></div>
+      <div class="verdict">我们相信按兵不动。</div>
+      <ul class="rat">
+        <li>按兵不动：no hike</li><li>按兵不动：hold</li><li>按兵不动：不会加息</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@user_en_h0：No hike. The economy is way weaker than the headline numbers say.
+          <a href="https://x.com/user_en_h0/status/700000000000004521" target="_blank" rel="noopener">↗</a></div>
+        
+        <div class="q">@user_en_h2：There&#39;s no way they raise rates into an election-year slowdown. Hold.
+          <a href="https://x.com/user_en_h2/status/700000000000004795" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+    <div class="delegate">
+      <div><span class="dname">加息派·市场定价</span><span class="dshare">
+        9%的加权声量 ·
+        7条 /
+        7个账号
+      </span></div>
+      <div class="verdict">我们相信加息。</div>
+      <ul class="rat">
+        <li>加息：市场定价（hike）</li>
+      </ul>
+      <div class="caveat">反转条件：（离线模式未生成）</div>
+      <div class="quotes">
+        
+        <div class="q">@viral_guy_demo：The Fed is going to hike and the entire market is positioned the wrong way. Screenshot this.
+          <a href="https://x.com/viral_guy_demo/status/700000000000006713" target="_blank" rel="noopener">↗</a></div>
+        
+        <div class="q">@promo_4：BREAKING: Fed to hike rates in September. Join our channel for the full analysis before the market moves.
+          <a href="https://x.com/promo_4/status/700000000000007398" target="_blank" rel="noopener">↗</a></div>
+        
+      </div>
+    </div>
+    
+  </div>
+  
+</section>
+
+
+<section>
+  <h2>层级间分歧</h2>
+  <ul class="notes"><li>中文区 KOL 比 官方信息 高 62%（74% vs 12%）</li><li>专业媒体 比 官方信息 高 46%（58% vs 12%）</li><li>大众用户 比 官方信息 高 41%（53% vs 12%）</li><li>英语区 KOL 比 官方信息 高 40%（52% vs 12%）</li><li>中文区 KOL 比 英语区 KOL 高 22%（74% vs 52%）</li><li>中文区 KOL 比 大众用户 高 21%（74% vs 53%）</li><li>中文区 KOL 比 专业媒体 高 16%（74% vs 58%）</li></ul>
+</section>
+
+
+<footer>
+  由 xfeeder 生成 · 2026-08-29 10:20 UTC ·
+  <code>fed-rate</code><br>
+  所有份额、账号数与概率均由确定性统计计算得出；模型只负责把这些数字写成句子。
+</footer>
+
+</div></body></html>
