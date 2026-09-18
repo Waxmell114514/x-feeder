@@ -1,133 +1,140 @@
-# xfeeder configuration
-# ---------------------------------------------------------------------
-# Everything here is tunable at runtime; nothing in the code hard-codes a
-# handle, a threshold or a weight.
+# chorus configuration.
+#
+# Two blocks decide what this system believes, and they are the two worth
+# arguing about:
+#
+#   `tiers`  - which venues count as what, and how much each tier is worth
+#              in the blended number. The channel allowlists are the only
+#              thing that can put a venue in `official`.
+#   `jev`    - every threshold a model answer is compared against. Read it
+#              next to src/chorus/jev/questions.py, which holds the wording
+#              of the questions those numbers apply to.
+#
+# Everything else is plumbing.
 
-db_path: .xfeeder/feeder.db
+db_path: .chorus/chorus.db
 output_dir: out
-output_lang: zh            # zh | en  - language of every synthesised sentence
+output_lang: zh              # zh | en - report language, not source language
 
 issue_files:
   - "issues/*.yaml"
 
-# ---------------------------------------------------------------------
-# Source tiers.
+# ----------------------------------------------------------------------
+# Source tiers
 #
-# `handles` is the allowlist and is the ONLY thing that should ever put an
-# account into `official`. Everything else is inferred, and inference is
-# allowed to be wrong; officialdom is not.
-#
-# authority_weighting: 0 = one account one vote, 1 = fully follower-weighted.
-# engagement_weighting: how much likes/RTs amplify. A Fed statement with
-#                       three likes is still the Fed, hence 0.15 there.
-# blend_weight:         this tier's share of the cross-tier blended number.
-# ---------------------------------------------------------------------
-cohorts:
+# Public sources make this cheap: the venue answers "who is speaking"
+# almost every time, and a venue only has to be judged once ever.
+tiers:
   official:
-    blend_weight: 0.35
-    authority_weighting: 1.0
-    engagement_weighting: 0.15
-    keywords: ["central bank", "official account", "federal reserve", "ministry of"]
-    handles:
-      - federalreserve
-      - nyfed
-      - stlouisfed
-      - chicagofed
-      - sffed
-      - USTreasury
-      - ecb
-      - bankofengland
-      - bankofjapan
-      - PBOC_China
+    blend_weight: 0.30
+    engagement_weighting: 0.10   # three upvotes on a Fed release is still the Fed
+    keywords: ["federalreserve", "treasury", "centralbank"]
+    channels:
+      - federalreserve.gov
+      - newyorkfed.org
+      - stlouisfed.org
+      - bls.gov
+      - bea.gov
+      - ecb.europa.eu
+      - bankofengland.co.uk
 
   pro_media:
     blend_weight: 0.25
-    authority_weighting: 0.85
-    engagement_weighting: 0.5
-    keywords: ["reuters", "bloomberg", "wsj", "correspondent", "reporter covering",
-               "editor at", "记者", "财经媒体"]
-    handles:
-      - Reuters
-      - ReutersBiz
-      - business          # Bloomberg
-      - economics         # Bloomberg Economics
-      - WSJmarkets
-      - FinancialTimes
-      - NickTimiraos      # WSJ Fed reporter - the "Fed whisperer"
-      - SteveLiesman
-      - CNBCnow
-      - Caixin
-      - YicaiChina
+    engagement_weighting: 0.50   # institutional credibility first, reach second
+    keywords: ["reuters", "bloomberg", "associated press"]
+    channels:
+      - reuters.com
+      - apnews.com
+      - bloomberg.com
+      - wsj.com
+      - ft.com
+      - cnbc.com
+      - nytimes.com
+      - washingtonpost.com
+      - economist.com
+      - barrons.com
+      - marketwatch.com
+      - axios.com
+      - caixin.com
+      - yicai.com
 
-  en_kol:
-    blend_weight: 0.15
-    authority_weighting: 0.6
-    engagement_weighting: 1.0
-    min_followers: 20000
-    langs: [en]
-    handles:
-      - biancoresearch
-      - LizAnnSonders
-      - GregDaco
-      - zerohedge
-      - Ninja_Economics
-
-  cn_kol:
-    blend_weight: 0.10
-    authority_weighting: 0.6
-    engagement_weighting: 1.0
-    min_followers: 10000
-    langs: [zh]
-    handles: []          # fill in the Chinese-language accounts you follow
+  expert:
+    blend_weight: 0.20
+    engagement_weighting: 0.80
+    channels:
+      - r/AskEconomics
+      - r/badeconomics
+      - r/econmonitor
+      - r/SecurityAnalysis
+      - r/AskHistorians
 
   crowd:
-    blend_weight: 0.15
-    # 0.0 on purpose: inside the crowd tier, a 40-follower account and a
-    # 40,000-follower account count the same. This is the whole point.
-    authority_weighting: 0.0
-    engagement_weighting: 1.0
-    max_followers: 20000
+    blend_weight: 0.25
+    engagement_weighting: 1.00   # one venue one weight; upvotes are all it has
+    channels:
+      - r/economics
+      - r/investing
+      - r/stocks
+      - r/wallstreetbets
+      - r/news
+      - r/worldnews
+      - news.ycombinator.com
 
-# ---------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# Anti-manipulation. Every number here is a policy choice, which is why it
+# is here and not in the code.
 weighting:
-  engagement_cap: 4.0        # a viral post is worth a few posts, not a few thousand
-  author_cap_pct: 0.05       # no account may exceed 5% of its tier
-  duplicate_damping: true    # n copies of one line count as sqrt(n) voices
-  min_account_age_days: 30
-  new_account_penalty: 0.35
-  low_follower_floor: 5
-  bot_penalty: 0.4
+  engagement_cap: 4.0          # a 40k-upvote post is worth a few posts, not thousands
+  speaker_cap_pct: 0.05        # no account may be more than 5% of a tier
+  channel_cap_pct: 0.35        # no single venue may be more than 35% of a tier
+  duplicate_damping: true      # n copies of one text count as sqrt(n) voices
+  thin_document_chars: 140     # below this a document is a headline, not an argument
+  thin_document_penalty: 0.6
 
 thresholds:
-  cluster_similarity: 0.62
-  min_cluster_share: 0.06
-  max_delegates_per_cohort: 4
-  consensus_shift_alert: 0.08   # blended move that is worth a ping
-  divergence_alert: 0.20        # tier-vs-tier gap that is worth a ping
+  panel_size: 6                # how many opinion leaders a mined panel may propose
+  min_leader_share: 0.06       # below this a leader is folded into "unassigned"
+  max_delegates_per_tier: 4
+  phrase_similarity: 0.58      # merging candidate positions that mean the same thing
+  min_phrase_docs: 2           # a position must appear in at least this many documents
+  consensus_shift_alert: 0.08
+  divergence_alert: 0.20
   volume_spike_ratio: 2.5
 
-llm:
-  extract_model: claude-opus-5
-  synthesize_model: claude-opus-5
-  extract_effort: low           # extraction is mechanical; do not overpay for it
-  synthesize_effort: high
-  extract_batch_size: 20
-  max_concurrency: 4
-  cache_dir: .xfeeder/llm-cache
-  offline: false
+# ----------------------------------------------------------------------
+# Jev (TypeSafe System One). Judgement enters the system here and nowhere
+# else. Read with src/chorus/jev/questions.py open.
+jev:
+  model: jev-latest            # pin a version (jev-1.13.0) to freeze thresholds
+  api_key_env: TYPESAFE_API_KEY
+  max_concurrency: 8
+  max_state_chars: 4000        # accuracy falls as state fills with irrelevant text
+  cache_dir: .chorus/jev-cache
+  offline: false               # true = keyword stand-in, no network, no cost
+
+  relevance_floor: 0.55        # P(this document bears on the question)
+  stance_confidence_floor: 0.30  # below this the document takes no side
+  stance_margin_floor: 0.15      # ...and the leading side must lead by this much
+  assign_confidence_floor: 0.45  # below this it joins no opinion leader
+  tier_confidence_floor: 0.50    # below this an unknown venue falls to `crowd`
+  term_on_topic_floor: 0.60      # below this a search term is not used
+  sarcasm_floor: 0.65
+  price_in_usd_per_mtok: 0.042   # published input price; output is free
 
 embeddings:
-  provider: hashing             # hashing (no key) | voyage | openai
-  model: voyage-3.5
+  provider: hashing            # hashing | voyage | openai (only used to merge phrases)
   dim: 512
 
 source:
-  provider: x_api               # x_api | fixture
-  bearer_token_env: X_BEARER_TOKEN
-  exclude_retweets: true
-  max_pages: 5
+  provider: public             # public | fixture
+  # Reddit and Google News both throttle anonymous traffic and ask you to
+  # say who you are. Put a real contact in here.
+  user_agent: "chorus/0.2 (public-opinion research; +https://your.site/contact)"
+  request_timeout: 20.0
+  max_pages: 3
+  per_run_document_budget: 1200
 
 alerts:
   enabled: false
-  webhook_url_env: XFEEDER_WEBHOOK_URL   # Slack/Discord/any JSON {"text": ...} sink
+  webhook_url_env: CHORUS_WEBHOOK_URL
   min_severity: warn

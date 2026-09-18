@@ -1,85 +1,96 @@
+"""Two snapshots in, signals out."""
 import datetime as dt
 
-from xfeeder.models import CohortVerdict, Delegate, Snapshot
-from xfeeder.pipeline.alerts import compute_alerts
+from chorus.models import Delegate, Snapshot, TierVerdict
+from chorus.pipeline.alerts import compute_alerts
 
-NOW = dt.datetime(2026, 8, 29, 12, 0, tzinfo=dt.timezone.utc)
-
-
-def verdict(cohort, prob, stance="hike", delegates=(), headline="h"):
-    return CohortVerdict(
-        issue_id="fed-rate", cohort=cohort, probability=prob,
-        dominant_stance=stance, stance_shares={stance: 1.0}, headline=headline,
-        n_posts=30, n_authors=20, delegates=list(delegates),
-    )
+NOW = dt.datetime(2026, 9, 18, tzinfo=dt.timezone.utc)
 
 
-def snapshot(ts_offset_h=0, **cohorts):
-    return Snapshot(
-        issue_id="fed-rate", ts=NOW + dt.timedelta(hours=ts_offset_h),
-        cohorts=cohorts,
-        blended_probability=(sum(v.probability for v in cohorts.values())
-                             / len(cohorts)) if cohorts else None,
-    )
+def verdict(tier, probability, stance="hike", delegates=(), n_docs=10):
+    return TierVerdict(issue_id="fed-rate", tier=tier, probability=probability,
+                       dominant_stance=stance, n_docs=n_docs, n_speakers=n_docs,
+                       delegates=list(delegates), headline=f"{tier} says {stance}")
+
+
+def delegate(leader_id, share=0.3, tier="crowd"):
+    return Delegate(id=f"{tier}:{leader_id}", issue_id="fed-rate", tier=tier,
+                    leader_id=leader_id, name=leader_id, verdict="we believe",
+                    stance="hike", share=share)
+
+
+def snapshot(blended=0.5, tiers=None, divergences=()):
+    return Snapshot(issue_id="fed-rate", ts=NOW, blended_probability=blended,
+                    tiers=tiers or {}, divergences=list(divergences))
 
 
 def kinds(alerts):
     return {a.kind for a in alerts}
 
 
-def test_no_alerts_when_nothing_moved(cfg, issue):
-    a = snapshot(crowd=verdict("crowd", 0.5))
-    b = snapshot(1, crowd=verdict("crowd", 0.51))
-    assert compute_alerts(cfg, issue, b, a) == []
+def test_no_signal_when_nothing_moved(cfg, issue):
+    snap = snapshot(0.5, {"crowd": verdict("crowd", 0.5)})
+    assert compute_alerts(cfg, issue, snap, snap) == []
 
 
-def test_consensus_shift_fires_past_the_threshold(cfg, issue):
-    a = snapshot(crowd=verdict("crowd", 0.40))
-    b = snapshot(1, crowd=verdict("crowd", 0.55))
-    assert "consensus_shift" in kinds(compute_alerts(cfg, issue, b, a))
+def test_a_consensus_shift_fires_past_the_threshold(cfg, issue):
+    before = snapshot(0.40, {"crowd": verdict("crowd", 0.40)})
+    after = snapshot(0.60, {"crowd": verdict("crowd", 0.60)})
+    assert "consensus_shift" in kinds(compute_alerts(cfg, issue, after, before))
 
 
-def test_stance_flip_is_critical(cfg, issue):
-    a = snapshot(crowd=verdict("crowd", 0.45, stance="hold"))
-    b = snapshot(1, crowd=verdict("crowd", 0.48, stance="hike"))
-    found = [x for x in compute_alerts(cfg, issue, b, a) if x.kind == "stance_flip"]
+def test_a_stance_flip_is_critical(cfg, issue):
+    before = snapshot(0.5, {"crowd": verdict("crowd", 0.5, stance="hold")})
+    after = snapshot(0.5, {"crowd": verdict("crowd", 0.5, stance="hike")})
+    found = [a for a in compute_alerts(cfg, issue, after, before)
+             if a.kind == "stance_flip"]
     assert found and found[0].severity == "critical"
 
 
-def test_the_crowd_contradicting_officialdom_is_the_headline_signal(cfg, issue):
-    cur = snapshot(official=verdict("official", 0.12, stance="hold"),
-                   crowd=verdict("crowd", 0.65))
-    found = compute_alerts(cfg, issue, cur, None)
-    contradiction = [a for a in found if a.kind == "official_contradiction"]
-    assert contradiction and contradiction[0].severity == "critical"
+def test_the_public_contradicting_officialdom_is_the_headline_signal(cfg, issue):
+    snap = snapshot(0.5, {"official": verdict("official", 0.10, stance="hold"),
+                          "crowd": verdict("crowd", 0.70)})
+    found = compute_alerts(cfg, issue, snap, None)
+    assert "official_contradiction" in kinds(found)
+    assert found[0].severity == "critical"
 
 
 def test_a_new_bloc_is_reported_once_it_is_material(cfg, issue):
-    old = verdict("crowd", 0.5, delegates=[
-        Delegate(id="1", issue_id="fed-rate", cohort="crowd", name="旧派",
-                 verdict="v", stance="hike", share=0.5)])
-    new = verdict("crowd", 0.5, delegates=[
-        Delegate(id="1", issue_id="fed-rate", cohort="crowd", name="旧派",
-                 verdict="v", stance="hike", share=0.5),
-        Delegate(id="2", issue_id="fed-rate", cohort="crowd", name="新派",
-                 verdict="v2", stance="hike", share=0.3)])
-    found = compute_alerts(cfg, issue, snapshot(1, crowd=new), snapshot(crowd=old))
-    assert "new_argument" in kinds(found)
+    before = snapshot(0.5, {"crowd": verdict("crowd", 0.5, delegates=[delegate("a")])})
+    after = snapshot(0.5, {"crowd": verdict(
+        "crowd", 0.5, delegates=[delegate("a"), delegate("b", share=0.25)])})
+    assert "new_argument" in kinds(compute_alerts(cfg, issue, after, before))
 
 
 def test_a_marginal_new_bloc_is_not_reported(cfg, issue):
-    old = verdict("crowd", 0.5, delegates=[])
-    new = verdict("crowd", 0.5, delegates=[
-        Delegate(id="2", issue_id="fed-rate", cohort="crowd", name="小派",
-                 verdict="v", stance="hike", share=0.03)])
-    found = compute_alerts(cfg, issue, snapshot(1, crowd=new), snapshot(crowd=old))
-    assert "new_argument" not in kinds(found)
+    before = snapshot(0.5, {"crowd": verdict("crowd", 0.5, delegates=[delegate("a")])})
+    after = snapshot(0.5, {"crowd": verdict(
+        "crowd", 0.5, delegates=[delegate("a"), delegate("b", share=0.02)])})
+    assert "new_argument" not in kinds(compute_alerts(cfg, issue, after, before))
 
 
-def test_alerts_are_ordered_most_severe_first(cfg, issue):
-    cur = snapshot(official=verdict("official", 0.10, stance="hold"),
-                   crowd=verdict("crowd", 0.70))
-    found = compute_alerts(cfg, issue, cur, None)
-    severities = [a.severity for a in found]
-    assert severities == sorted(severities, key={"critical": 0, "warn": 1,
-                                                 "info": 2}.__getitem__)
+def test_blocs_are_compared_by_identity_not_by_display_name(cfg, issue):
+    """A panel that keeps its ids cannot invent a 'new' bloc by rewording."""
+    old = delegate("hike--services-inflation")
+    renamed = delegate("hike--services-inflation")
+    renamed.name = "completely different words"
+    before = snapshot(0.5, {"crowd": verdict("crowd", 0.5, delegates=[old])})
+    after = snapshot(0.5, {"crowd": verdict("crowd", 0.5, delegates=[renamed])})
+    assert "new_argument" not in kinds(compute_alerts(cfg, issue, after, before))
+
+
+def test_a_volume_spike_is_information_not_an_emergency(cfg, issue):
+    before = snapshot(0.5, {"crowd": verdict("crowd", 0.5, n_docs=4)})
+    after = snapshot(0.5, {"crowd": verdict("crowd", 0.5, n_docs=40)})
+    found = [a for a in compute_alerts(cfg, issue, after, before)
+             if a.kind == "volume_spike"]
+    assert found and found[0].severity == "info"
+
+
+def test_signals_are_ordered_most_severe_first(cfg, issue):
+    snap = snapshot(0.5, {"official": verdict("official", 0.10, stance="hold"),
+                          "crowd": verdict("crowd", 0.70)})
+    found = compute_alerts(cfg, issue, snap, None)
+    order = [a.severity for a in found]
+    assert order == sorted(order, key=lambda s: {"critical": 0, "warn": 1,
+                                                 "info": 2}[s])

@@ -1,157 +1,243 @@
-"""End-to-end on the bundled fixture. No network, no keys."""
-import datetime as dt
+"""End to end over the bundled documents, with the keyword stand-in."""
+import pathlib
 
 import pytest
-from conftest import REPO
 
-from xfeeder import textutil
-from xfeeder.pipeline.cohort import run_classify
-from xfeeder.pipeline.extract import run_extract
-from xfeeder.pipeline.ingest import run_ingest, window_posts
-from xfeeder.pipeline.synthesize import run_synthesize
-from xfeeder.store import Store
+from chorus.pipeline import panel as panel_mod
+from chorus.pipeline import plan as plan_mod
+from chorus.pipeline.assign import run_assign
+from chorus.pipeline.ingest import run_ingest, window_documents
+from chorus.pipeline.read import run_read
+from chorus.pipeline.synthesize import run_synthesize
+from chorus.pipeline.tier import run_tier
+from chorus.render import html as html_render
+from chorus.store import Store
+
+QUIET = lambda *a, **k: None          # noqa: E731
 
 
-@pytest.fixture
-def run(cfg, tmp_path):
-    cfg.db_path = str(tmp_path / "t.db")
-    cfg.llm.cache_dir = str(tmp_path / "cache")
-    cfg.llm.offline = True
+def words_in_order(phrase: str, text: str) -> bool:
+    """Is `phrase` the document's own words, in the document's own order?
+
+    Not a substring test: the miner works on word tokens, so punctuation
+    inside a span is elided - "rates steady next week, economists" comes
+    back without the comma. Everything else must match exactly.
+    """
+    from chorus import textutil
+    needle = textutil.tokens(phrase)
+    haystack = textutil.tokens(text)
+    if not needle:
+        return False
+    for i in range(len(haystack) - len(needle) + 1):
+        if haystack[i:i + len(needle)] == needle:
+            return True
+    return False
+
+
+@pytest.fixture(scope="module")
+def run(tmp_path_factory):
+    """One full cycle, shared by every test below."""
+    import sys
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
+    from chorus.config import load_config
+    from chorus.jev import JevClient
+
+    repo = pathlib.Path(__file__).resolve().parents[1]
+    tmp = tmp_path_factory.mktemp("run")
+    cfg = load_config(repo / "config" / "demo.yaml")
+    cfg.source.fixture_path = str(repo / "fixtures" / "fed_rate_demo.jsonl")
+    cfg.db_path = str(tmp / "test.db")
+    cfg.jev.cache_dir = str(tmp / "cache")
+    cfg.output_dir = str(tmp / "out")
+    cfg.jev.offline = True
+
+    issue = cfg.issue("fed-rate")
+    jev = JevClient(cfg)
     store = Store(cfg.db_path)
-    run_ingest(cfg, store, "fed-rate", log=lambda *a: None)
-    posts = window_posts(cfg, store, "fed-rate")
-    run_classify(cfg, store, posts, llm=None, log=lambda *a: None)
-    run_extract(cfg, store, "fed-rate", posts, llm=None, log=lambda *a: None)
-    snap = run_synthesize(cfg, store, "fed-rate", posts, llm=None,
-                          log=lambda *a: None)
-    yield cfg, store, snap, posts
-    store.close()
+
+    plan = plan_mod.build_plan(cfg, issue, jev, log=QUIET)
+    store.save_plan(plan)
+    run_ingest(cfg, store, issue, plan, log=QUIET)
+    documents = window_documents(cfg, store, issue, plan)
+    run_tier(cfg, store, documents, jev, log=QUIET)
+    run_read(cfg, store, issue, documents, jev, log=QUIET)
+    readings = store.get_readings(issue.id)
+    panel = panel_mod.load_or_build(cfg, store, issue, documents, readings, jev,
+                                    log=QUIET)
+    run_assign(cfg, store, issue, documents, readings, panel, jev, log=QUIET)
+    assignments = store.get_assignments(issue.id)
+    snap = run_synthesize(cfg, store, issue, documents, readings, panel,
+                          assignments, log=QUIET)
+    store.add_snapshot(snap)
+    return {"cfg": cfg, "issue": issue, "store": store, "snap": snap,
+            "documents": {d.id: d for d in documents}, "readings": readings,
+            "panel": panel, "assignments": assignments, "tmp": tmp}
 
 
-def test_all_five_tiers_are_represented(run):
-    _, _, snap, _ = run
-    assert set(snap.cohorts) == {"official", "pro_media", "en_kol", "cn_kol", "crowd"}
+# ------------------------------------------------------------- collection
+def test_every_source_in_the_plan_is_actually_collected(run):
+    sources = {d.source for d in run["documents"].values()}
+    assert {"reddit", "gnews", "rss", "hackernews"} <= sources
 
 
-def test_every_tier_gets_at_least_one_delegate(run):
-    _, _, snap, _ = run
-    for cohort, v in snap.cohorts.items():
-        assert v.delegates, f"{cohort} produced no voice"
-        assert all(d.verdict for d in v.delegates)
+def test_documents_are_not_collected_twice_by_overlapping_queries(run):
+    ids = list(run["documents"])
+    assert len(ids) == len(set(ids))
 
 
+# ------------------------------------------------------------------ tiers
+def test_all_four_tiers_are_represented(run):
+    assert set(run["snap"].tiers) == {"official", "pro_media", "expert", "crowd"}
+
+
+def test_an_institutions_own_feed_is_official(run):
+    tiers = run["store"].get_channel_tiers()
+    assert tiers["federalreserve.gov"].tier == "official"
+    assert tiers["federalreserve.gov"].method == "allowlist"
+
+
+def test_a_subreddit_named_in_the_issue_file_keeps_its_tier(run):
+    tiers = run["store"].get_channel_tiers()
+    assert tiers["r/AskEconomics"].tier == "expert"
+    assert tiers["r/economics"].tier == "crowd"
+
+
+def test_officialdom_and_the_public_are_measured_separately(run):
+    tiers = run["snap"].tiers
+    assert tiers["official"].probability != tiers["crowd"].probability
+    assert run["snap"].divergences
+
+
+# --------------------------------------------------------------- reading
+def test_off_topic_documents_are_dropped(run):
+    off_topic = [d for d in run["documents"].values()
+                 if d.author == "off_topic_andy"]
+    assert off_topic
+    assert not run["readings"][off_topic[0].id].relevant
+
+
+def test_a_policy_rate_is_never_read_as_a_probability(run):
+    """4.25-4.50% is a rate. Reading it as odds destroyed the official tier's
+    number in the previous generation of this project."""
+    for doc in run["documents"].values():
+        if "4.25-4.50%" in doc.body:
+            assert run["readings"][doc.id].stated_probability is None
+
+
+def test_a_stated_likelihood_is_picked_up(run):
+    stated = {r.stated_probability for r in run["readings"].values()
+              if r.stated_probability is not None}
+    assert 0.38 in stated
+
+
+# ----------------------------------------------------------------- panel
+def test_the_panel_speaks_in_phrases_from_the_documents(run):
+    corpus = " ".join(d.body for d in run["documents"].values())
+    for leader in run["panel"].leaders:
+        assert words_in_order(leader.label, corpus)
+
+
+def test_every_leader_holds_a_stance_on_the_axis(run):
+    valid = set(run["issue"].stance_ids())
+    assert all(leader.stance in valid for leader in run["panel"].leaders)
+
+
+def test_a_delegate_never_contradicts_its_own_bloc(run):
+    for verdict in run["snap"].tiers.values():
+        for delegate in verdict.delegates:
+            for quote in delegate.quotes:
+                assert run["readings"][quote.doc_id].stance == delegate.stance
+
+
+# ------------------------------------------------------------- arithmetic
 def test_delegate_shares_never_exceed_the_tier(run):
-    _, _, snap, _ = run
-    for v in snap.cohorts.values():
-        assert sum(d.share for d in v.delegates) <= 1.0 + 1e-6
-
-
-def test_every_delegate_cites_real_posts(run):
-    """The synthesis must be traceable: no invented citations."""
-    _, store, snap, posts = run
-    known = {p.id for p in posts}
-    for v in snap.cohorts.values():
-        for d in v.delegates:
-            assert d.quotes, f"{d.name} cites nothing"
-            for q in d.quotes:
-                assert q.post_id in known
-
-
-def test_delegate_counts_match_their_cluster(run):
-    _, _, snap, _ = run
-    for v in snap.cohorts.values():
-        for d in v.delegates:
-            assert d.n_authors <= d.n_posts
-            assert 0.0 < d.share <= 1.0
+    for verdict in run["snap"].tiers.values():
+        assigned = sum(d.share for d in verdict.delegates)
+        assert assigned <= 1.0001
+        assert abs(assigned + verdict.unassigned_share - 1.0) < 0.02
 
 
 def test_stance_shares_sum_to_one(run):
-    _, _, snap, _ = run
-    for v in snap.cohorts.values():
-        assert sum(v.stance_shares.values()) == pytest.approx(1.0)
-
-
-def test_the_crowd_and_officialdom_are_measured_separately(run):
-    """The whole point: tiers are not averaged into one number."""
-    _, _, snap, _ = run
-    assert snap.cohorts["crowd"].probability != snap.cohorts["official"].probability
-    assert snap.blended_probability is not None
+    for verdict in run["snap"].tiers.values():
+        assert abs(sum(verdict.stance_shares.values()) - 1.0) < 1e-6
 
 
 def test_a_flooding_account_is_capped(run):
-    """One account posting nine times must not become the crowd's majority."""
-    _, store, snap, posts = run
-    crowd = snap.cohorts["crowd"]
-    for d in crowd.delegates:
-        assert d.n_authors > 1 or d.share <= 0.10
+    """One account posted nine times in the crowd tier."""
+    cfg, snap = run["cfg"], run["snap"]
+    crowd = [d for d in run["documents"].values()
+             if d.author == "loud_poster"]
+    assert len(crowd) == 9
+    cap = cfg.weighting.speaker_cap_pct
+    verdict = snap.tiers["crowd"]
+    for delegate in verdict.delegates:
+        speakers = {q.speaker for q in delegate.quotes}
+        assert "loud_poster" not in speakers or delegate.share <= cap * 20
 
 
 def test_astroturf_never_leads_a_bloc(run):
-    """Six accounts posting one identical line is damped, and the copied
-    line is never the bloc's strongest quote."""
-    _, _, snap, _ = run
-    for d in snap.cohorts["crowd"].delegates:
-        assert "Join our channel" not in d.quotes[0].text
+    """Six accounts posted one identical line. It must not be the loudest
+    voice anywhere."""
+    for verdict in run["snap"].tiers.values():
+        for delegate in verdict.delegates:
+            if delegate.quotes:
+                assert not delegate.quotes[0].speaker.startswith("acct_")
 
 
-def test_quotes_are_distinct_texts_and_distinct_accounts(run):
-    """A reader must never be shown five copies of the same post."""
-    _, _, snap, _ = run
-    for v in snap.cohorts.values():
-        for d in v.delegates:
-            texts = [textutil.text_hash(q.text) for q in d.quotes]
-            handles = [q.handle for q in d.quotes]
-            assert len(set(texts)) == len(texts)
-            assert len(set(handles)) == len(handles)
+def test_quotes_are_distinct_texts_and_distinct_speakers(run):
+    for verdict in run["snap"].tiers.values():
+        for delegate in verdict.delegates:
+            speakers = [q.speaker for q in delegate.quotes]
+            texts = [q.text for q in delegate.quotes]
+            assert len(speakers) == len(set(speakers))
+            assert len(texts) == len(set(texts))
 
 
-def test_rerunning_extraction_is_free(run):
-    cfg, store, _, posts = run
-    info = run_extract(cfg, store, "fed-rate", posts, llm=None, log=lambda *a: None)
-    assert info["new"] == 0 and info["reused"] == len(posts)
+def test_a_delegates_reasons_are_verbatim_from_its_own_documents(run):
+    """The replacement for a model-written rationale is quotation, and it
+    has to actually be quotation."""
+    for verdict in run["snap"].tiers.values():
+        for delegate in verdict.delegates:
+            members = " ".join(
+                run["documents"][doc_id].body
+                for doc_id, a in run["assignments"].items()
+                if a.leader_id == delegate.leader_id and doc_id in run["documents"]
+            )
+            for reason in delegate.rationale:
+                assert words_in_order(reason, members)
+
+
+# ------------------------------------------------------------- the report
+def test_every_sentence_in_the_report_is_populated(run):
+    snap = run["snap"]
+    assert snap.global_headline
+    assert snap.notes
+    for verdict in snap.tiers.values():
+        assert verdict.headline
 
 
 def test_snapshots_round_trip_through_sqlite(run):
-    _, store, snap, _ = run
-    store.add_snapshot(snap)
-    back = store.latest_snapshots("fed-rate", limit=1)[0]
-    assert back.issue_id == snap.issue_id
-    assert set(back.cohorts) == set(snap.cohorts)
-    assert back.cohorts["crowd"].delegates[0].verdict == \
-        snap.cohorts["crowd"].delegates[0].verdict
+    store, snap = run["store"], run["snap"]
+    restored = store.latest_snapshots("fed-rate", limit=1)[0]
+    assert restored.global_headline == snap.global_headline
+    assert set(restored.tiers) == set(snap.tiers)
+    assert [x.id for x in restored.panel] == [x.id for x in snap.panel]
 
 
-def test_html_report_renders(run, tmp_path):
-    cfg, store, snap, _ = run
-    from xfeeder.render import html
-    out = html.render(snap, cfg.issue("fed-rate"), alerts=[], lang="zh",
-                      history=[snap], out_path=tmp_path / "r.html")
+def test_the_html_report_renders(run):
+    out = pathlib.Path(run["tmp"]) / "report.html"
+    html_render.render(run["snap"], run["issue"], alerts=[], lang="zh",
+                       out_path=out)
     body = out.read_text(encoding="utf-8")
-    assert "大众用户" in body and "{{" not in body
+    assert "chorus" in body
+    assert run["snap"].global_headline[:12] in body
 
 
-def test_query_tags_are_stable_across_processes(cfg):
-    """A tag derived from builtin hash() would change every run, silently
-    breaking the since_id cursor and the window filter."""
-    import subprocess
-    import sys
-
-    from xfeeder.pipeline.ingest import query_tag
-
-    issue = cfg.issue("fed-rate")
-    q = type(issue.queries[0])(cohort="crowd", query="some query text")
-    here = query_tag(issue, q)
-
-    code = (
-        "import sys; sys.path.insert(0, %r);"
-        "from xfeeder.config import load_config;"
-        "from xfeeder.pipeline.ingest import query_tag;"
-        "i = load_config(%r).issue('fed-rate');"
-        "Q = type(i.queries[0]);"
-        "print(query_tag(i, Q(cohort='crowd', query='some query text')))"
-        % (str(REPO / "src"), str(REPO / "config" / "demo.yaml"))
-    )
-    # PYTHONHASHSEED is randomised per process by default; that is the point.
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True,
-                         text=True, check=True).stdout.strip()
-    assert out == here
+def test_re_running_a_stage_costs_nothing(run):
+    cfg, store, issue = run["cfg"], run["store"], run["issue"]
+    from chorus.jev import JevClient
+    jev = JevClient(cfg)
+    documents = list(run["documents"].values())
+    info = run_read(cfg, store, issue, documents, jev, log=QUIET)
+    assert info["new"] == 0
+    assert jev.usage["questions"] == 0

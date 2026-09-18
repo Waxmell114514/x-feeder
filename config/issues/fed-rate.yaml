@@ -1,83 +1,130 @@
 # One issue = one question the machine is trying to answer about the world.
 #
-# The question must be answerable from a single post in isolation, because
-# that is how the extractor reads them. "Will the Fed hike in September" is a
-# good question; "what is the state of the economy" is not.
+# The question must be answerable from a single document in isolation,
+# because that is how the reader sees them. "Will the Fed raise rates in
+# September" is a good question; "what is the state of the economy" is not.
 issues:
   - id: fed-rate
     title: "Probability the FOMC raises rates at the next meeting"
     title_zh: "美联储下次会议加息概率"
     question: >
-      Will the FOMC raise the federal funds target range at its next scheduled
-      meeting? A post supports "hike" if it argues for or prices a rate
-      increase, "hold" if it argues rates stay unchanged, "cut" if it argues
-      for a decrease.
+      Will the Federal Reserve raise its policy interest rate at the next
+      FOMC meeting?
     background: >
-      Policy rate is currently 4.25-4.50%. The last three meetings were holds.
-      Core PCE has been running above target and the labour market has been
-      resilient. Market pricing has been oscillating between hold and hike.
-    window_hours: 24
-    half_life_hours: 12      # a 12h-old take is worth half a fresh one
+      The federal funds target range is 4.25-4.50%. The last three meetings
+      were holds. Core PCE has been running above the 2% target and the
+      labour market has stayed firm. Market pricing has been oscillating
+      between a hold and a hike.
+
+    window_hours: 48
+    half_life_hours: 24      # a day-old take is worth half a fresh one
     output_lang: zh
 
+    # --- the answers a document can take ------------------------------
+    # `anchor` is where a side sits on the 0-1 axis. It is used to derive a
+    # reading when nobody states a number, and it is a prior, not a
+    # measurement - changing it changes the result, which is the point of
+    # having it in the open.
+    # `description` is handed to Jev verbatim and read literally.
+    # `keywords` are examples; they sharpen the criteria for Jev and are
+    # what the offline stand-in matches on.
     axis:
       - id: hike
         label: "raise rates"
         label_zh: "加息"
-        anchor: 0.90         # where this side sits on the 0-1 probability axis
-        keywords: ["加息", "要加", "hike", "raise rates", "rate rise", "tighten",
-                   "hawkish", "鹰派", "收紧", "上调利率"]
+        anchor: 0.90
+        description: >
+          The text argues that the Fed will, or should, raise its policy
+          rate at the next meeting.
+        keywords: ["hike", "rate hike", "raise rates", "tighten", "hawkish",
+                   "another increase", "加息", "收紧", "鹰派"]
       - id: hold
         label: "hold rates steady"
         label_zh: "按兵不动"
         anchor: 0.12
-        keywords: ["不加息", "不会加息", "按兵不动", "维持不变", "利率不变", "暂停",
-                   "no hike", "not hiking", "won't hike", "stay on hold", "on hold",
-                   "hold steady", "hold", "no change", "unchanged", "pause",
-                   "data dependent", "观望", "不变"]
+        description: >
+          The text argues that the Fed will, or should, leave its policy
+          rate unchanged at the next meeting.
+        keywords: ["hold", "on hold", "no hike", "not hiking", "stay put",
+                   "unchanged", "pause", "data dependent", "按兵不动",
+                   "维持不变", "不加息"]
       - id: cut
         label: "cut rates"
         label_zh: "降息"
         anchor: 0.02
-        keywords: ["降息", "减息", "rate cut", "cut rates", "cutting", "easing",
-                   "宽松", "鸽派", "dovish pivot", "下调利率"]
+        description: >
+          The text argues that the Fed will, or should, lower its policy
+          rate at the next meeting.
+        keywords: ["cut", "rate cut", "cut rates", "easing", "dovish",
+                   "降息", "宽松", "鸽派"]
       - id: unclear
         label: "no clear position"
         label_zh: "态度不明"
 
     quantity:
       id: p_hike
-      name: "P(hike at next meeting)"
+      name: "P(hike at the next meeting)"
       description: >
-        The probability the speaker assigns to a rate increase at the next
-        FOMC meeting. Includes probabilities the speaker attributes to market
-        pricing ("futures imply 40%"), which count as market_pricing.
+        the probability that the Fed raises its policy rate at the next FOMC
+        meeting
 
-    # Each query is bound to the tier it is expected to return. `from:` queries
-    # are trusted to pin their tier; broad queries are not, and the classifier
-    # re-derives the tier for those accounts.
-    queries:
-      - cohort: official
-        tag: fed-rate:official
-        query: "from:federalreserve OR from:nyfed OR from:stlouisfed OR from:sffed"
-        max_results: 50
-      - cohort: pro_media
-        tag: fed-rate:media
-        query: "(from:Reuters OR from:business OR from:NickTimiraos OR from:SteveLiesman OR from:economics) (fed OR fomc OR rates OR \"rate hike\")"
-        max_results: 100
-      - cohort: en_kol
-        tag: fed-rate:en_kol
-        query: "(FOMC OR \"rate hike\" OR \"fed funds\") (min_faves:150) lang:en -is:retweet"
-        max_results: 100
-      - cohort: cn_kol
-        tag: fed-rate:cn_kol
-        query: "(美联储 OR 加息 OR 降息 OR 议息) (min_faves:50) lang:zh -is:retweet"
-        max_results: 100
-      - cohort: crowd
-        tag: fed-rate:crowd_en
-        query: "(FOMC OR \"rate hike\" OR \"the fed\") lang:en -is:retweet -min_faves:150"
-        max_results: 100
-      - cohort: crowd
-        tag: fed-rate:crowd_zh
-        query: "(美联储 OR 加息 OR 议息) lang:zh -is:retweet -min_faves:50"
-        max_results: 100
+    # --- what to search for -------------------------------------------
+    # Seeds only. The planner judges these, mines more from the question
+    # itself, and can mine more again from what the first pass collected
+    # (`chorus plan --expand`). Terms drawn from one side of the axis are
+    # only used in balanced sets - see pipeline/plan.py.
+    entities: ["Federal Reserve", "FOMC", "Jerome Powell"]
+    terms:
+      - "fed rate decision"
+      - "interest rates"
+      - "fomc meeting"
+      - "monetary policy"
+      - "inflation"
+
+    # --- where to look -------------------------------------------------
+    # A subreddit named under a tier is both searched and pinned to that
+    # tier. Feeds are the honest way to fill `official`: an institution's
+    # own press feed is the institution speaking.
+    sources:
+      reddit:
+        enabled: true
+        search_all: true
+        include_comments: true
+        max_results: 60
+        subreddits:
+          expert: [AskEconomics, badeconomics, econmonitor]
+          crowd: [economics, investing, personalfinance]
+      hackernews:
+        enabled: true
+        include_comments: true
+        tier: crowd
+      gnews:
+        enabled: true
+        hl: en-US
+        gl: US
+        ceid: "US:en"
+      feeds:
+        - url: "https://www.federalreserve.gov/feeds/press_all.xml"
+          tier: official
+          channel: federalreserve.gov
+        - url: "https://www.newyorkfed.org/rss/feeds/all"
+          tier: official
+          channel: newyorkfed.org
+
+    # --- the panel of virtual opinion leaders --------------------------
+    # Left empty on purpose: with no panel, `chorus run` mines one from the
+    # documents and `chorus panel --write` prints it in the shape below.
+    # Freeze it once you are happy with it - a panel that is re-mined every
+    # run makes two snapshots incomparable, and comparing snapshots is what
+    # a monitor is for.
+    #
+    # panel:
+    #   - id: hike--sticky-services-inflation
+    #     label: "sticky services inflation"
+    #     label_zh: "加息派·通胀未退"
+    #     stance: hike
+    #     description: >
+    #       Argues for "raise rates", reasoning from: services inflation has
+    #       not come down.
+    #     flip_on: "core PCE printing below 0.2% month-on-month twice running"
+    panel: []
