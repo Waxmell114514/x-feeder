@@ -88,9 +88,14 @@ class GoogleNewsPlan(BaseModel):
     gl: str = "US"
     ceid: str = "US:en"
     max_results: int = 60
-    # Google News returns headlines, not article bodies. The tier of an item
-    # is decided from the outlet domain it carries.
-    default_tier: str = "pro_media"
+    # Google News returns headlines, not article bodies, and it indexes far
+    # more than newsrooms: press releases, broker blogs, trade sheets,
+    # user-contributed investing sites. Pinning everything it returns to
+    # `pro_media` would hand a tier named "professional media" to whoever
+    # got indexed. Left empty, each new outlet is placed by the allowlist,
+    # then by domain heuristics, then by one Jev call that is cached for
+    # that domain forever.
+    default_tier: str = ""
 
 
 class FeedPlan(BaseModel):
@@ -133,6 +138,20 @@ class Issue(BaseModel):
     window_hours: int = 48
     half_life_hours: float = 24.0
     output_lang: str = "zh"
+    # Is this a question about something that has not happened yet?
+    #
+    # It matters more than it looks. Ask "will the Fed raise rates at the
+    # next meeting" the day after a meeting, and most of what you collect
+    # is coverage of the rise that just happened. Those documents are
+    # relevant, and they are not forecasts - counting "Fed hikes rates" as
+    # a vote for a future hike is how a monitor reports 86% certainty about
+    # an event nobody has an opinion on yet. When this is true, a document
+    # that Jev judged to be relaying an event rather than taking a side is
+    # recorded as taking no side, which is what its own criteria say.
+    #
+    # Set it false for a question about the past ("did they raise in
+    # September?"), where a report of the event is the answer.
+    forward_looking: bool = True
 
     def stance_ids(self) -> list[str]:
         return [s.id for s in self.axis]
@@ -183,6 +202,11 @@ class Thresholds(BaseModel):
     max_delegates_per_tier: int = 4
     phrase_similarity: float = 0.58    # merging mined candidate phrases
     min_phrase_docs: int = 2           # a phrase must appear in this many docs
+    # How much of a tier has to have taken a side before its number means
+    # anything. Below this the tier is reported as volume without a reading:
+    # "90%" computed from the 18% who committed reads as the tier's view of
+    # the world, and it is not.
+    min_decided_share: float = 0.25
     consensus_shift_alert: float = 0.08
     divergence_alert: float = 0.20
     volume_spike_ratio: float = 2.5
@@ -214,6 +238,11 @@ class JevConfig(BaseModel):
     stance_margin_floor: float = 0.15
     assign_confidence_floor: float = 0.45   # below this a document joins no bloc
     tier_confidence_floor: float = 0.50     # below this an unknown channel -> crowd
+    # How sure the model has to be that a document is *reporting* before
+    # that erases its side on a forward-looking question. An uncertain guess
+    # here would delete a real position, which is the same failure the
+    # sarcasm rule refuses to make.
+    provenance_confidence_floor: float = 0.50
     term_on_topic_floor: float = 0.60
     sarcasm_floor: float = 0.65
     price_in_usd_per_mtok: float = 0.042
@@ -232,6 +261,13 @@ class SourceConfig(BaseModel):
     # Reddit and Google News both ask for a descriptive agent string and
     # throttle anonymous traffic; say who you are.
     user_agent: str = "chorus/0.2 (public-opinion research; +https://github.com/)"
+    # Reddit blocks anonymous JSON reads from datacenter address ranges
+    # outright - an HTML block page, not a rate-limit response, whatever
+    # User-Agent you send. From a server you need app-only credentials:
+    # make a "script" app at https://www.reddit.com/prefs/apps and export
+    # these two. From a home connection the anonymous path still works.
+    reddit_client_id_env: str = "REDDIT_CLIENT_ID"
+    reddit_client_secret_env: str = "REDDIT_CLIENT_SECRET"
     request_timeout: float = 20.0
     max_pages: int = 3
     per_run_document_budget: int = 1200

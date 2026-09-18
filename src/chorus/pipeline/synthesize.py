@@ -109,19 +109,26 @@ def _tier_verdict(*, cfg, issue, tier, doc_ids, doc_map, readings, assignments,
     shares = W.stance_shares(weights, readings)
     blended, explicit, from_stance, coverage = W.implied_probability(
         weights, readings, issue.anchors())
-    agree = W.agreement(shares)
+    decided = sum(v for s, v in shares.items() if s in issue.anchors())
+    if decided < cfg.thresholds.min_decided_share:
+        # The arithmetic is sound and the number is still meaningless: it
+        # describes the sliver of the tier that committed, while the report
+        # would show it as the tier's reading. Keep both components on the
+        # record and publish no headline number.
+        blended = None
+    agree = W.agreement(shares, issue.anchors())
     speakers = {doc_map[d].speaker for d in doc_ids}
     channels = {doc_map[d].channel for d in doc_ids}
     confidence = W.confidence(n_speakers=len(speakers), n_channels=len(channels),
                               agree=agree, weights=weights, readings=readings)
 
-    delegates, unassigned = _delegates(
+    delegates, unassigned, undecided = _delegates(
         cfg=cfg, issue=issue, tier=tier, doc_ids=doc_ids, doc_map=doc_map,
         readings=readings, weights=weights, assignments=assignments,
         panel=panel, total=total, lang=lang,
     )
 
-    dominant = max(shares, key=lambda k: shares[k]) if shares else "unclear"
+    dominant = _dominant(shares, issue)
     dominant_share = shares.get(dominant, 0.0)
     split = None
     if dominant_share < 0.55 and len(shares) > 1:
@@ -133,7 +140,8 @@ def _tier_verdict(*, cfg, issue, tier, doc_ids, doc_map, readings, assignments,
         probability_explicit=explicit, probability_from_stance=from_stance,
         explicit_coverage=coverage, agreement=agree, confidence=confidence,
         n_docs=len(doc_ids), n_speakers=len(speakers), n_channels=len(channels),
-        weight=total, unassigned_share=unassigned, delegates=delegates,
+        weight=total, unassigned_share=unassigned, undecided_share=undecided,
+        delegates=delegates,
     )
     verdict.headline = phrasing.tier_headline(
         tier_label=tier_label(tier, lang),
@@ -148,14 +156,38 @@ def _tier_verdict(*, cfg, issue, tier, doc_ids, doc_map, readings, assignments,
 
 
 # ----------------------------------------------------------------------
+def _dominant(shares: dict[str, float], issue) -> str:
+    """The leading *side*, which is never "no side".
+
+    A tier can be mostly undecided - that is what `unclear`'s share is for -
+    but reporting "the leading position is: no position" tells a reader
+    nothing, and it would flip on and off between runs and fire a stance
+    flip every time it did.
+    """
+    anchored = {s: v for s, v in shares.items() if s in issue.anchors()}
+    if anchored:
+        return max(anchored, key=lambda k: anchored[k])
+    return max(shares, key=lambda k: shares[k]) if shares else "unclear"
+
+
 def _delegates(*, cfg, issue, tier, doc_ids, doc_map, readings, weights,
-               assignments, panel, total, lang) -> tuple[list[Delegate], float]:
+               assignments, panel, total, lang
+               ) -> tuple[list[Delegate], float, float]:
+    anchors = issue.anchors()
     by_leader: dict[str, list[str]] = defaultdict(list)
     unassigned_weight = 0.0
+    undecided_weight = 0.0
     for doc_id in doc_ids:
+        weight = weights.get(doc_id, 0.0)
+        reading = readings.get(doc_id)
+        if reading is None or reading.stance not in anchors:
+            # Took no side. No panel could have represented it, so it is not
+            # counted against the panel.
+            undecided_weight += weight
+            continue
         assignment = assignments.get(doc_id)
         if assignment is None or not assignment.leader_id:
-            unassigned_weight += weights.get(doc_id, 0.0)
+            unassigned_weight += weight
             continue
         by_leader[assignment.leader_id].append(doc_id)
 
@@ -178,7 +210,9 @@ def _delegates(*, cfg, issue, tier, doc_ids, doc_map, readings, weights,
     dropped = out[cfg.thresholds.max_delegates_per_tier:]
     unassigned_weight += sum(d.weight for d in dropped)
     out = out[: cfg.thresholds.max_delegates_per_tier]
-    return out, (unassigned_weight / total if total else 0.0)
+    if not total:
+        return out, 0.0, 0.0
+    return out, unassigned_weight / total, undecided_weight / total
 
 
 def _delegate(issue, tier, leader: Leader, members: list[str], doc_map, readings,
@@ -327,11 +361,15 @@ def _headline(issue, snap: Snapshot, divergences, lang: str) -> str:
         for v in snap.tiers.values():
             counts[v.dominant_stance] += v.weight
         dominant = counts.most_common(1)[0][0]
+    
+    read_tiers = [t for t, v in snap.tiers.items() if v.probability is not None]
     return phrasing.global_headline(
         blended=snap.blended_probability,
         top_divergence=divergences[0].note if divergences else None,
         dominant_label=issue.stance_label(dominant, lang),
-        n_docs=snap.n_docs, lang=lang,
+        n_docs=snap.n_docs, n_readings=len(read_tiers),
+        only_tier=tier_label(read_tiers[0], lang) if len(read_tiers) == 1 else "",
+        lang=lang,
     )
 
 
@@ -351,6 +389,11 @@ def _notes(cfg, issue, snap: Snapshot, verdicts, lang: str) -> list[str]:
                 official_p=official.probability, lang=lang))
 
     for tier, v in verdicts.items():
+        decided = sum(s for k, s in v.stance_shares.items() if k in issue.anchors())
+        if v.probability is None and decided < cfg.thresholds.min_decided_share \
+                and v.n_docs >= 4:
+            notes.append(phrasing.no_reading_note(
+                tier_label=tier_label(tier, lang), decided=decided, lang=lang))
         if v.n_docs < 4:
             notes.append(phrasing.thin_tier_note(
                 tier_label=tier_label(tier, lang), n_docs=v.n_docs, lang=lang))
@@ -358,4 +401,8 @@ def _notes(cfg, issue, snap: Snapshot, verdicts, lang: str) -> list[str]:
             separator = "：" if lang == "zh" else ": "
             notes.append(tier_label(tier, lang) + separator
                          + phrasing.unassigned_note(v.unassigned_share, lang))
+        elif v.undecided_share >= 0.5:
+            separator = "：" if lang == "zh" else ": "
+            notes.append(tier_label(tier, lang) + separator
+                         + phrasing.undecided_note(v.undecided_share, lang))
     return notes

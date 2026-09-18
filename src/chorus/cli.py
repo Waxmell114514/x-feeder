@@ -25,7 +25,7 @@ from rich.console import Console
 
 from . import __version__, phrasing
 from .config import Config, load_config
-from .jev import JevClient
+from .jev import JevClient, JevError
 from .models import Snapshot
 from .pipeline import alerts as alerts_mod
 from .pipeline import plan as plan_mod
@@ -310,7 +310,7 @@ def _pipeline(cfg: Config, store: Store, issue_id: str, *, do_ingest: bool = Tru
     documents = window_documents(cfg, store, issue, plan, log=log)
 
     log(f"\n[bold]3/6 tier[/bold]  ({len(documents)} documents in window)")
-    info = run_tier(cfg, store, documents, jev, log=log)
+    info = run_tier(cfg, store, documents, jev, issue=issue, log=log)
     log("  " + ", ".join(f"{k}={v}" for k, v in sorted(info["counts"].items()))
         + f"   [dim]{info['asked']} venue(s) judged by Jev[/dim]")
 
@@ -407,7 +407,7 @@ def cmd_tier(args) -> int:
     issue = cfg.issue(issue_id)
     with Store(cfg.db_path) as store:
         documents = window_documents(cfg, store, issue, store.get_plan(issue_id))
-        info = run_tier(cfg, store, documents, _jev(cfg), log=log)
+        info = run_tier(cfg, store, documents, _jev(cfg), issue=issue, log=log)
         for channel, row in sorted(store.get_channel_tiers().items()):
             log(f"  {row.tier:10} {channel:34} [dim]{row.method}: {row.reason}[/dim]")
     log(f"\n{info['new']} newly tiered across {info['channels']} venues")
@@ -621,6 +621,14 @@ def main(argv: list[str] | None = None) -> int:
         return args.func(args)
     except KeyboardInterrupt:
         return 130
+    except KeyError as e:
+        # An unknown issue id, or a config that loaded none. Both are typos,
+        # and a stack trace is a poor way to say so.
+        console.print(f"[red]{e.args[0] if e.args else e}[/red]")
+        return 2
+    except (JevError, FileNotFoundError) as e:
+        console.print(f"[red]{e}[/red]")
+        return 1
 
 
 if __name__ == "__main__":

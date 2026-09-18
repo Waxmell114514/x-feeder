@@ -74,6 +74,23 @@ def unassigned_note(share: float, lang: str = ZH) -> str:
 
 
 # ----------------------------------------------------------------------
+def undecided_note(share: float, lang: str = ZH) -> str:
+    """Voice that took no side. Not a hole in the panel - a fact about the
+    moment, and for an official tier usually the most important one."""
+    if lang == ZH:
+        return f"{_pct(share)} 的声量没有表态——这本身就是读数的一部分。"
+    return (f"{_pct(share)} of this tier's voice took no side - which is "
+            f"itself part of the reading.")
+
+
+def no_reading_note(*, tier_label: str, decided: float, lang: str = ZH) -> str:
+    if lang == ZH:
+        return (f"{tier_label}：只有 {_pct(decided)} 的声量表了态，"
+                f"不足以给出读数——这一层只有讨论量，没有结论。")
+    return (f"{tier_label}: only {_pct(decided)} of its voice took a side, "
+            f"which is too little to read - volume without a verdict.")
+
+
 def divergence_note(*, higher_label: str, lower_label: str, delta: float,
                     higher_p: float, lower_p: float, lang: str = ZH) -> str:
     if lang == ZH:
@@ -95,28 +112,40 @@ def official_gap(*, gap: float, crowd_p: float, official_p: float,
 
 
 def global_headline(*, blended: Optional[float], top_divergence: Optional[str],
-                    dominant_label: str, n_docs: int, lang: str = ZH) -> str:
+                    dominant_label: str, n_docs: int, n_readings: int = 0,
+                    only_tier: str = "", lang: str = ZH) -> str:
     """The one line at the top.
 
     When the tiers disagree, the disagreement is the headline - that is the
-    whole reason they are kept apart.
+    whole reason they are kept apart. When only one tier has enough
+    committed voice to read at all, saying "the tiers agree" would be true
+    of a single number and false about the world, so it says which tier.
     """
     if lang == ZH:
         if top_divergence:
             head = f"各层级不一致：{top_divergence}"
             return head + (f"；综合隐含概率 {_pct(blended)}。" if blended is not None
                            else "。")
+        if blended is not None and n_readings < 2:
+            where = f"只有{only_tier}" if only_tier else "只有一层"
+            return (f"{where}有足够表态给出读数：{_pct(blended)}"
+                    f"；其余层级只有讨论量。")
         if blended is not None:
             return f"综合隐含概率 {_pct(blended)}，各层级读数一致。"
-        return f"{n_docs} 篇公开发言中，主流立场是「{dominant_label}」。"
+        return f"{n_docs} 篇公开发言中，没有哪一层表态到足以给出读数。"
 
     if top_divergence:
         head = f"The tiers disagree: {top_divergence}"
         return head + (f"; blended reading {_pct(blended)}." if blended is not None
                        else ".")
+    if blended is not None and n_readings < 2:
+        where = only_tier or "one tier"
+        return (f"Only {where} committed enough to read: {_pct(blended)}; "
+                f"the rest is volume.")
     if blended is not None:
         return f"Blended reading {_pct(blended)}, with the tiers in agreement."
-    return f"Across {n_docs} public documents the leading position is '{dominant_label}'."
+    return (f"Across {n_docs} public documents, no tier committed enough to "
+            f"give a reading.")
 
 
 # ----------------------------------------------------------------------

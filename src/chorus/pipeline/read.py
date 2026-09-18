@@ -101,25 +101,44 @@ def _to_reading(cfg, issue, doc: Document, response) -> Reading:
     elif _margin(probabilities) < cfg.jev.stance_margin_floor:
         stance = "unclear"
 
-    speaks_for, _, _ = response.choice("speaks_for")
+    speaks_for, _, provenance_confidence = response.choice("speaks_for")
     if speaks_for not in ("own_view", "market_pricing", "official_guidance",
                           "reported_data", "unclear"):
         speaks_for = "own_view"
+
+    # "The author is relaying an event that already happened, and takes no
+    # side on the question" is what `reported_data` means in the question
+    # this answer came from. On a question about something that has not
+    # happened yet, the code honours that instead of quietly reading the
+    # report as a forecast: "Fed hikes rates" is news about last week, not
+    # a view about next month. The document stays in the sample as
+    # undecided, and still counts as volume.
+    # ...but only when the model was sure it is a report. Erasing a real
+    # position on an uncertain guess is the same failure the sarcasm rule
+    # refuses to make, in the other direction.
+    if (issue.forward_looking and speaks_for == "reported_data"
+            and provenance_confidence >= cfg.jev.provenance_confidence_floor):
+        stance = "unclear"
 
     number = _stated_number(response, doc)
     anchor = anchors.get(stance)
     if number is not None and anchor is not None and abs(number - anchor) > COHERENCE_GAP:
         number = None
 
-    # A document counts when it clears the relevance floor AND leaves
-    # something to count: a side, or a number it put on the outcome.
-    on_topic = relevance >= cfg.jev.relevance_floor
-    says_something = stance != "unclear" or number is not None
-
+    # Relevance decides whether a document is in the sample. Stance decides
+    # which side it is on, and "no side" is one of the answers.
+    #
+    # Conflating the two deletes exactly the documents that matter most: an
+    # FOMC statement that says a decision has not been made scores 0.96 on
+    # relevance and takes no side on purpose, and "officialdom has given no
+    # guidance" is the fact the whole official-vs-public signal rests on. A
+    # media report that the experts are split is the same shape. They stay
+    # in, counted under `unclear`, which carries no anchor and so moves no
+    # probability - it only shows how much of the room is still waiting.
     return Reading(
         doc_id=doc.id,
         issue_id=issue.id,
-        relevant=on_topic and says_something,
+        relevant=relevance >= cfg.jev.relevance_floor,
         relevance=round(relevance, 3),
         stance=stance,
         stance_probabilities={k: round(v, 4) for k, v in probabilities.items()},

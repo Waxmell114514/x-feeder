@@ -169,6 +169,9 @@
     {% if c.v.unassigned_share >= 0.15 %}
     <div class="caveat">{{ c.unassigned_note }}</div>
     {% endif %}
+    {% if c.v.undecided_share >= 0.15 %}
+    <div class="caveat">{{ c.undecided_note }}</div>
+    {% endif %}
   </div>
   {% endfor %}
 </section>

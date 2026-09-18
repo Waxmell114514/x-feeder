@@ -21,12 +21,13 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 
 from ..config import normalise_channel
+from ..jev import QUESTION_VERSION
 from ..jev import questions as Q
 from ..models import ChannelTier, Document
 from ..store import Store
 
 
-def run_tier(cfg, store: Store, documents: list[Document], jev,
+def run_tier(cfg, store: Store, documents: list[Document], jev, issue=None,
              log=print) -> dict:
     known = store.get_channel_tiers()
     allow = cfg.channel_table()
@@ -40,8 +41,13 @@ def run_tier(cfg, store: Store, documents: list[Document], jev,
     counts: Counter = Counter()
 
     for channel, docs in by_channel.items():
-        if channel in known and known[channel].method in ("allowlist", "manual", "jev"):
-            counts[known[channel].tier] += 1
+        settled = known.get(channel)
+        if settled and settled.method in ("allowlist", "manual"):
+            counts[settled.tier] += 1
+            continue
+        # A judgement stands until the question that produced it changes.
+        if settled and settled.method == "jev" and settled.version == QUESTION_VERSION:
+            counts[settled.tier] += 1
             continue
 
         pinned = _allowlisted(channel, allow)
@@ -72,7 +78,7 @@ def run_tier(cfg, store: Store, documents: list[Document], jev,
         unresolved.append(channel)
 
     if unresolved:
-        resolved = _ask_jev(cfg, by_channel, unresolved, jev, log)
+        resolved = _ask_jev(cfg, by_channel, unresolved, jev, issue, log)
         for item in resolved:
             counts[item.tier] += 1
         decided.extend(resolved)
@@ -109,14 +115,17 @@ def _heuristic(cfg, channel: str) -> tuple[str, str] | None:
     return None
 
 
-def _ask_jev(cfg, by_channel, channels: list[str], jev, log) -> list[ChannelTier]:
+def _ask_jev(cfg, by_channel, channels: list[str], jev, issue,
+             log) -> list[ChannelTier]:
     floor = cfg.jev.tier_confidence_floor
+    question = issue.question if issue is not None else ""
     items = []
     for channel in channels:
         docs = by_channel[channel]
         samples = [d.title or d.body[:160] for d in docs[:5]]
         kind = docs[0].channel_kind if docs else "forum"
-        items.append((channel, Q.tier_state(channel, kind, samples),
+        items.append((channel, Q.tier_state(channel, kind, samples,
+                                            question=question),
                       Q.tier_questions()))
 
     errors: list[str] = []
@@ -146,5 +155,6 @@ def _ask_jev(cfg, by_channel, channels: list[str], jev, log) -> list[ChannelTier
             continue
         out.append(ChannelTier(channel=channel, tier=tier, method="jev",
                                confidence=round(confidence, 3),
+                               version=QUESTION_VERSION,
                                reason="judged from the venue and its recent items"))
     return out

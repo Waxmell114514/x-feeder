@@ -37,6 +37,7 @@ def render(snap: Snapshot, issue, alerts: Optional[list[Alert]] = None,
                 for s, share in v.stance_shares.items()
             ],
             "unassigned_note": phrasing.unassigned_note(v.unassigned_share, lang),
+            "undecided_note": phrasing.undecided_note(v.undecided_share, lang),
         }
         for key, v in snap.tiers.items()
     ]

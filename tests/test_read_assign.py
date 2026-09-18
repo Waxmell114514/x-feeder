@@ -29,6 +29,7 @@ def score(value, levels=3):
 
 
 def read_one(cfg, issue, doc, **answers):
+    """One document through the reader, with sensible answers by default."""
     base = {
         "relevant": noul(0.9),
         "stance": choice("hike", {"hike": 0.9, "hold": 0.1}, 0.9),
@@ -53,7 +54,18 @@ def test_a_stance_the_model_could_not_separate_is_no_stance(cfg, issue):
                        stance=choice("hike", {"hike": 0.34, "hold": 0.33,
                                               "cut": 0.33}, 0.02))
     assert reading.stance == "unclear"
-    assert not reading.relevant
+
+
+def test_a_document_that_takes_no_side_stays_in_the_sample(cfg, issue):
+    """An FOMC statement saying no decision has been made is 96% on topic
+    and deliberately non-committal. Dropping it deletes the one fact the
+    official-versus-public signal is built on."""
+    doc = make_document("d1", text="No decision has been made about the next "
+                                   "meeting; policy is data dependent.")
+    reading = read_one(cfg, issue, doc, relevant=noul(0.96),
+                       stance=choice("unclear", {"unclear": 0.9, "hold": 0.1}, 0.9))
+    assert reading.relevant
+    assert reading.stance == "unclear"
 
 
 def test_a_dead_heat_at_the_top_is_no_stance_either(cfg, issue):
@@ -79,6 +91,42 @@ def test_the_full_distribution_is_kept_not_just_the_winner(cfg, issue):
     reading = read_one(cfg, issue, doc,
                        stance=choice("hike", {"hike": 0.6, "hold": 0.4}, 0.55))
     assert reading.stance_probabilities == {"hike": 0.6, "hold": 0.4}
+    assert reading.stance == "hike"
+
+
+def test_news_of_the_event_is_not_a_forecast_of_it(cfg, issue):
+    """"Fed hikes rates" is news about last week. Counting it as a vote for
+    a hike next month is how a monitor reports 86% certainty about a
+    question nobody has answered yet."""
+    doc = make_document("d1", title="Fed hikes interest rates by quarter point")
+    reading = read_one(cfg, issue, doc,
+                       speaks_for=choice("reported_data", {"reported_data": 1.0}, 1.0),
+                       stance=choice("hike", {"hike": 0.95, "hold": 0.05}, 0.95))
+    assert reading.relevant                 # still in the sample, still volume
+    assert reading.stance == "unclear"      # but not a forecast
+    assert reading.speaks_for == "reported_data"
+
+
+def test_an_unsure_guess_that_it_is_reporting_erases_nothing(cfg, issue):
+    """Deleting a real position on a coin-flip provenance guess is the same
+    failure the sarcasm rule refuses to make, pointed the other way."""
+    doc = make_document("d1", text="We are prepared to hold rates steady for "
+                                   "as long as the data warrant.")
+    reading = read_one(cfg, issue, doc,
+                       speaks_for=choice("reported_data",
+                                         {"reported_data": 0.4, "own_view": 0.35,
+                                          "official_guidance": 0.25}, 0.2),
+                       stance=choice("hold", {"hold": 0.9, "hike": 0.1}, 0.9))
+    assert reading.stance == "hold"
+
+
+def test_a_backward_looking_issue_keeps_the_report_as_its_answer(cfg, issue):
+    past = issue.model_copy(deep=True)
+    past.forward_looking = False
+    doc = make_document("d1", title="Fed hikes interest rates by quarter point")
+    reading = read_one(cfg, past, doc,
+                       speaks_for=choice("reported_data", {"reported_data": 1.0}, 1.0),
+                       stance=choice("hike", {"hike": 0.95, "hold": 0.05}, 0.95))
     assert reading.stance == "hike"
 
 

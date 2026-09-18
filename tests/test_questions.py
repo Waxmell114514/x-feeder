@@ -104,3 +104,14 @@ def test_a_one_leader_panel_skips_the_choice():
 
 def test_tier_criteria_cover_every_configured_tier(cfg):
     assert set(Q.TIER_CRITERIA) == set(cfg.tiers)
+
+
+def test_official_is_defined_against_the_question_not_in_general(issue):
+    """"A company speaking for itself" filed an exchange, an asset manager
+    and a bank as officialdom. The tier means the body the question is
+    about, so the question has to be in the state."""
+    state = Q.tier_state("kkr.com", "outlet", ["Flash Macro: FOMC"],
+                         question=issue.question)
+    assert "question" in state
+    assert "`question`" in Q.TIER_CRITERIA["official"]
+    assert "NOT official" in Q.TIER_CRITERIA["official"]

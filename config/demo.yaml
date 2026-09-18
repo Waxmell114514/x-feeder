@@ -20,7 +20,8 @@ tiers:
   expert:
     blend_weight: 0.20
     engagement_weighting: 0.80
-    channels: [r/AskEconomics, r/badeconomics, r/econmonitor]
+    channels: [r/AskEconomics, r/badeconomics, r/econmonitor,
+               libertystreeteconomics.newyorkfed.org]
   crowd:
     blend_weight: 0.25
     engagement_weighting: 1.00

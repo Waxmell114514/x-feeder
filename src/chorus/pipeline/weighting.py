@@ -236,10 +236,27 @@ def implied_probability(
     return blended, explicit, from_stance, coverage
 
 
-def agreement(shares: dict[str, float]) -> float:
-    """1.0 when a tier speaks with one voice, 0.0 when uniformly split."""
+def agreement(shares: dict[str, float],
+              anchors: Optional[dict[str, float]] = None) -> float:
+    """1.0 when the tier speaks with one voice, 0.0 when uniformly split.
+
+    Measured over the sides only. "No side" is not a competing position: a
+    tier where everyone who spoke said the same thing and the rest said
+    nothing is unanimous, and reporting it as 12% agreement because most of
+    the room stayed quiet describes the wrong thing. How much of the room
+    stayed quiet is `undecided_share`, which is a separate number on
+    purpose.
+    """
+    if anchors is not None:
+        shares = {k: v for k, v in shares.items() if k in anchors}
+        total = sum(shares.values())
+        if total <= 0:
+            return 0.0
+        shares = {k: v / total for k, v in shares.items()}
     vals = [v for v in shares.values() if v > 0]
-    if len(vals) <= 1:
+    if not vals:
+        return 0.0
+    if len(vals) == 1:
         return 1.0
     entropy = -sum(v * math.log(v) for v in vals)
     return max(0.0, 1.0 - entropy / math.log(len(vals)))

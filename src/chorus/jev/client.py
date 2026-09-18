@@ -41,7 +41,7 @@ from . import offline as offline_answerer
 # Bumped whenever the wording of a question changes. It is part of every
 # cache key and of every stored judgement, so a reworded question
 # invalidates exactly the answers it could have changed and nothing else.
-QUESTION_VERSION = "2026-09-18.1"
+QUESTION_VERSION = "2026-09-18.2"
 
 
 class JevUnavailable(RuntimeError):
@@ -186,9 +186,18 @@ class JevClient:
         payload = self._post(state, questions)
         self._record(payload, len(questions))
         if cache:
-            tmp = path.with_suffix(".tmp")
-            tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-            tmp.replace(path)                     # atomic: no half-written cache hits
+            # Unique temp name per write: two threads can legitimately ask
+            # the same question at the same time - six accounts posting one
+            # identical line produce one identical state - and a shared
+            # temp name means one of them renames the file out from under
+            # the other.
+            tmp = path.with_suffix(f".{os.getpid()}.{threading.get_ident()}.tmp")
+            try:
+                tmp.write_text(json.dumps(payload, ensure_ascii=False),
+                               encoding="utf-8")
+                tmp.replace(path)                 # atomic: no half-written hits
+            except OSError:
+                tmp.unlink(missing_ok=True)       # a cache miss is not a failure
         return Response(payload)
 
     def _post(self, state: Any, questions: dict) -> dict:

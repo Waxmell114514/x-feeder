@@ -59,7 +59,7 @@ def run(tmp_path_factory):
     store.save_plan(plan)
     run_ingest(cfg, store, issue, plan, log=QUIET)
     documents = window_documents(cfg, store, issue, plan)
-    run_tier(cfg, store, documents, jev, log=QUIET)
+    run_tier(cfg, store, documents, jev, issue=issue, log=QUIET)
     run_read(cfg, store, issue, documents, jev, log=QUIET)
     readings = store.get_readings(issue.id)
     panel = panel_mod.load_or_build(cfg, store, issue, documents, readings, jev,
@@ -109,6 +109,15 @@ def test_officialdom_and_the_public_are_measured_separately(run):
 
 
 # --------------------------------------------------------------- reading
+def test_the_leading_position_is_never_no_position(run):
+    """A tier can be mostly undecided - that is what unclear's share says -
+    but "the leading position is: no position" tells a reader nothing."""
+    anchors = set(run["issue"].anchors())
+    for verdict in run["snap"].tiers.values():
+        if any(s in anchors for s in verdict.stance_shares):
+            assert verdict.dominant_stance in anchors
+
+
 def test_off_topic_documents_are_dropped(run):
     off_topic = [d for d in run["documents"].values()
                  if d.author == "off_topic_andy"]
@@ -154,7 +163,20 @@ def test_delegate_shares_never_exceed_the_tier(run):
     for verdict in run["snap"].tiers.values():
         assigned = sum(d.share for d in verdict.delegates)
         assert assigned <= 1.0001
-        assert abs(assigned + verdict.unassigned_share - 1.0) < 0.02
+        accounted = assigned + verdict.unassigned_share + verdict.undecided_share
+        assert abs(accounted - 1.0) < 0.02
+
+
+def test_taking_no_side_is_not_counted_against_the_panel(run):
+    """A document that took no position could not have joined any bloc, so
+    it belongs in `undecided`, not in the panel's gap."""
+    anchors = set(run["issue"].anchors())
+    for tier, verdict in run["snap"].tiers.items():
+        undecided = sum(
+            share for stance, share in verdict.stance_shares.items()
+            if stance not in anchors
+        )
+        assert abs(verdict.undecided_share - undecided) < 0.08
 
 
 def test_stance_shares_sum_to_one(run):
@@ -241,3 +263,43 @@ def test_re_running_a_stage_costs_nothing(run):
     info = run_read(cfg, store, issue, documents, jev, log=QUIET)
     assert info["new"] == 0
     assert jev.usage["questions"] == 0
+
+
+def test_a_tier_that_mostly_took_no_side_reports_no_number(cfg, issue):
+    """18% of a tier saying 'hike' is not the tier saying 90%."""
+    import datetime as dt
+    from chorus.models import Panel
+    from chorus.pipeline.synthesize import run_synthesize
+    from chorus.store import Store
+    from conftest import make_document, make_reading
+
+    documents, readings = [], {}
+    for i in range(12):
+        doc = make_document(f"d{i}", author=f"u{i}", text="x" * 200,
+                            channel="r/economics")
+        documents.append(doc)
+        readings[doc.id] = make_reading(
+            doc.id, stance="hike" if i < 2 else "unclear")
+
+    with Store(cfg.db_path) as store:
+        store.upsert_channel_tiers([])
+        snap = run_synthesize(cfg, store, issue, documents, readings,
+                              Panel(issue_id=issue.id), {}, log=QUIET)
+    crowd = snap.tiers["crowd"]
+    assert crowd.probability is None
+    assert crowd.n_docs == 12
+    assert any("表了态" in n or "took a side" in n for n in snap.notes)
+
+
+def test_one_tier_with_a_reading_is_not_the_tiers_agreeing(cfg, issue):
+    """"The tiers agree" is true of a single number and false about the
+    world."""
+    from chorus import phrasing
+    one = phrasing.global_headline(blended=0.9, top_divergence=None,
+                                   dominant_label="加息", n_docs=47,
+                                   n_readings=1, only_tier="大众讨论")
+    many = phrasing.global_headline(blended=0.9, top_divergence=None,
+                                    dominant_label="加息", n_docs=47,
+                                    n_readings=3)
+    assert "大众讨论" in one and "一致" not in one
+    assert "一致" in many

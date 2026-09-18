@@ -70,11 +70,14 @@ doc("rss", "federalreserve.gov", "", kind="feed", hours_ago=16,
          "warrant. We will act as appropriate to sustain the expansion, and we "
          "would move if the inflation picture deteriorated materially. For "
          "now the stance is data dependent.")
-doc("rss", "newyorkfed.org", "", kind="feed", hours_ago=26,
-    title="Survey of Consumer Expectations: one-year inflation expectations rise",
+# A central bank research blog: the authors' views, not the institution's.
+doc("rss", "libertystreeteconomics.newyorkfed.org", "research staff",
+    kind="feed", hours_ago=26,
+    title="What the Survey of Consumer Expectations says about the next move",
     text="Median one-year-ahead inflation expectations rose to 3.4% from 3.1%. "
-         "Expectations at the three-year horizon were little changed. The "
-         "survey is a measurement and carries no policy signal.")
+         "Our reading is that expectations this sticky make it harder to hold "
+         "rates steady for much longer, though the committee will want "
+         "another print first. Views here are the authors' own.")
 doc("rss", "federalreserve.gov", "", kind="feed", hours_ago=9,
     title="Speech: the case for patience",
     text="With services inflation still sticky, I would not rule out another "

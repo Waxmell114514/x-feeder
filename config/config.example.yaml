@@ -67,6 +67,9 @@ tiers:
       - r/econmonitor
       - r/SecurityAnalysis
       - r/AskHistorians
+      # An institution's research blog carries its authors' views, not the
+      # institution's - which is a different tier from its press feed.
+      - libertystreeteconomics.newyorkfed.org
 
   crowd:
     blend_weight: 0.25
@@ -94,6 +97,7 @@ weighting:
 thresholds:
   panel_size: 6                # how many opinion leaders a mined panel may propose
   min_leader_share: 0.06       # below this a leader is folded into "unassigned"
+  min_decided_share: 0.25      # below this a tier reports volume but no number
   max_delegates_per_tier: 4
   phrase_similarity: 0.58      # merging candidate positions that mean the same thing
   min_phrase_docs: 2           # a position must appear in at least this many documents
@@ -117,6 +121,8 @@ jev:
   stance_margin_floor: 0.15      # ...and the leading side must lead by this much
   assign_confidence_floor: 0.45  # below this it joins no opinion leader
   tier_confidence_floor: 0.50    # below this an unknown venue falls to `crowd`
+  provenance_confidence_floor: 0.50  # below this, "it is only reporting" does not
+                                     # erase a forward-looking document's side
   term_on_topic_floor: 0.60      # below this a search term is not used
   sarcasm_floor: 0.65
   price_in_usd_per_mtok: 0.042   # published input price; output is free
@@ -130,6 +136,13 @@ source:
   # Reddit and Google News both throttle anonymous traffic and ask you to
   # say who you are. Put a real contact in here.
   user_agent: "chorus/0.2 (public-opinion research; +https://your.site/contact)"
+  # Reddit blocks anonymous JSON reads from datacenter ranges outright - an
+  # HTML block page, not a rate limit, whatever agent string you send. From
+  # a server, make a free "script" app at reddit.com/prefs/apps and export
+  # REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET; this source then uses
+  # oauth.reddit.com by itself. From a home connection it works as is.
+  reddit_client_id_env: REDDIT_CLIENT_ID
+  reddit_client_secret_env: REDDIT_CLIENT_SECRET
   request_timeout: 20.0
   max_pages: 3
   per_run_document_budget: 1200

@@ -11,6 +11,7 @@ import datetime as dt
 
 from ..http import request
 from ..models import Document, Engagement, PlannedQuery
+from . import feedparse
 from .base import SourceResult, from_epoch
 
 BASE = "https://hn.algolia.com/api/v1"
@@ -47,8 +48,11 @@ def _document(hit: dict, tag: str) -> Document | None:
     native = hit.get("objectID")
     if not native:
         return None
-    title = hit.get("title") or hit.get("story_title") or ""
-    text = hit.get("story_text") or hit.get("comment_text") or ""
+    title = feedparse.strip_html(hit.get("title") or hit.get("story_title") or "")
+    # Algolia hands back comment bodies as HTML, entities and anchor tags and
+    # all. Left in, a quoted URL becomes "x2f gov x2f monetarypolicy" and that
+    # phrase can win a seat on the panel.
+    text = feedparse.strip_html(hit.get("story_text") or hit.get("comment_text") or "")
     if not (title or text):
         return None
     return Document(

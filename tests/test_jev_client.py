@@ -154,3 +154,29 @@ def test_score_answers_are_scaled_by_their_own_rubric(cfg):
                                     "probabilities": {}, "confidence": 0.5}}})
     assert r.unit_score("s") == 1.0
     assert r.score("s")[1] == 3
+
+
+def test_identical_questions_asked_at_once_do_not_race(cfg, monkeypatch):
+    """Six accounts posting one identical line produce one identical state,
+    so concurrent requests for the same cache key are normal."""
+    import threading
+
+    monkeypatch.setenv(cfg.jev.api_key_env, "k")
+    started = threading.Barrier(4)
+
+    def slow(method, url, **kw):
+        started.wait(timeout=5)
+        return {"model": "m", "answers": {"q": {"type": "noul", "noul": 0.6}},
+                "usage": {"input_tokens": 10}}
+
+    monkeypatch.setattr(client_mod, "request", slow)
+    cfg.jev.offline = False
+    cfg.jev.max_concurrency = 4
+    client = JevClient(cfg)
+
+    items = [(i, "same state", {"q": Q.noul("same question")}) for i in range(4)]
+    errors = []
+    out = client.ask_many(items, on_error=lambda key, e: errors.append(e))
+    assert not errors
+    assert len(out) == 4
+    assert all(r.noul("q") == 0.6 for r in out.values())

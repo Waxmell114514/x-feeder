@@ -36,6 +36,7 @@ def request(
     params: Optional[dict[str, Any]] = None,
     headers: Optional[dict[str, str]] = None,
     json_body: Optional[dict] = None,
+    form_body: Optional[dict] = None,
     timeout: float = 30.0,
     retries: int = 3,
 ) -> dict:
@@ -48,6 +49,9 @@ def request(
     if json_body is not None:
         data = json.dumps(json_body).encode("utf-8")
         hdrs.setdefault("Content-Type", "application/json")
+    elif form_body is not None:
+        data = urllib.parse.urlencode(form_body).encode("utf-8")
+        hdrs.setdefault("Content-Type", "application/x-www-form-urlencoded")
     hdrs.setdefault("User-Agent", DEFAULT_USER_AGENT)
 
     last: Exception | None = None

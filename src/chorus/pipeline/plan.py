@@ -199,6 +199,7 @@ def balance_stance_terms(judgements: list[TermJudgement],
     for ids in kept_by_stance.values():
         ids.sort(key=lambda j: -j.on_topic)
     allowance = min(len(kept_by_stance.get(s, [])) for s in stance_ids)
+    empty = [s for s in stance_ids if not kept_by_stance.get(s)]
 
     for stance, items in kept_by_stance.items():
         for j in items[allowance:]:
@@ -207,8 +208,9 @@ def balance_stance_terms(judgements: list[TermJudgement],
                 "dropped to keep the sides balanced: "
                 f"only {allowance} term(s) survived for every side"
                 if allowance else
-                "dropped to keep the sides balanced: one side of the axis "
-                "had no surviving term at all"
+                "dropped to keep the sides balanced: "
+                f"{', '.join(empty)} has no usable search term, so no side "
+                f"contributes vocabulary"
             )
     return judgements
 
@@ -224,7 +226,16 @@ def build_plan(cfg, issue, jev, *, corpus: Optional[list[str]] = None,
         f"({sum(1 for _, o in candidates if o == 'corpus')} mined from documents)")
 
     judgements = judge_terms(jev, issue, candidates, log=log)
+    before = {j.term for j in judgements if j.kept}
     judgements = balance_stance_terms(judgements, origins, issue)
+    dropped = before - {j.term for j in judgements if j.kept}
+    if dropped:
+        # This is a coverage decision the operator should get to argue with,
+        # so it is said out loud rather than left in the table.
+        log(f"  ! {len(dropped)} stance term(s) dropped to keep the sides "
+            f"balanced; the plan searches neutral vocabulary only")
+        log(f"    fix by giving the thin side better `keywords`, or by "
+            f"removing a side nobody is actually arguing")
 
     kept = [j for j in judgements if j.kept]
     kept.sort(key=lambda j: -j.on_topic)

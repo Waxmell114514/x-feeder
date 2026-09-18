@@ -140,3 +140,64 @@ def test_a_feed_query_matches_by_channel():
     query = PlannedQuery(source="rss", channel="https://www.federalreserve.gov/f.xml",
                          options={"channel": "federalreserve.gov"}, tag="t")
     assert _matches(query, doc)
+
+
+# ------------------------------------------------------- reddit credentials
+def test_reddit_stays_anonymous_without_credentials(cfg, monkeypatch):
+    from chorus.sources.reddit import PUBLIC, RedditSource
+    monkeypatch.delenv(cfg.source.reddit_client_id_env, raising=False)
+    monkeypatch.delenv(cfg.source.reddit_client_secret_env, raising=False)
+    source = RedditSource(cfg)
+    assert not source.authenticated
+    assert source.base == PUBLIC
+    assert "Authorization" not in source._auth_headers()
+
+
+def test_credentials_switch_reddit_to_the_oauth_host(cfg, monkeypatch):
+    from chorus.sources import reddit as reddit_mod
+    monkeypatch.setenv(cfg.source.reddit_client_id_env, "id")
+    monkeypatch.setenv(cfg.source.reddit_client_secret_env, "secret")
+
+    seen = {}
+
+    def fake_request(method, url, *, headers=None, form_body=None, **kw):
+        seen["url"] = url
+        seen["auth"] = (headers or {}).get("Authorization", "")
+        seen["grant"] = (form_body or {}).get("grant_type")
+        return {"access_token": "tok", "expires_in": 3600}
+
+    monkeypatch.setattr(reddit_mod, "request", fake_request)
+    source = reddit_mod.RedditSource(cfg)
+    assert source.base == reddit_mod.OAUTH
+    assert source._auth_headers()["Authorization"] == "Bearer tok"
+    assert seen["url"] == reddit_mod.TOKEN_URL
+    assert seen["grant"] == "client_credentials"
+    assert seen["auth"].startswith("Basic ")
+
+
+def test_a_token_is_reused_until_it_is_nearly_expired(cfg, monkeypatch):
+    from chorus.sources import reddit as reddit_mod
+    monkeypatch.setenv(cfg.source.reddit_client_id_env, "id")
+    monkeypatch.setenv(cfg.source.reddit_client_secret_env, "secret")
+    calls = []
+    monkeypatch.setattr(reddit_mod, "request", lambda *a, **k: (
+        calls.append(1), {"access_token": "tok", "expires_in": 3600})[1])
+    source = reddit_mod.RedditSource(cfg)
+    source._auth_headers()
+    source._auth_headers()
+    assert len(calls) == 1
+
+
+def test_the_403_message_names_the_remedy_that_applies(cfg, monkeypatch):
+    """A datacenter block and a bad key need different fixes, and a message
+    that names the wrong one costs an afternoon."""
+    from chorus.sources.reddit import RedditSource, _refusal
+    monkeypatch.delenv(cfg.source.reddit_client_id_env, raising=False)
+    monkeypatch.delenv(cfg.source.reddit_client_secret_env, raising=False)
+    anonymous = _refusal(RedditSource(cfg), 403)
+    assert "prefs/apps" in anonymous and "User-Agent" in anonymous
+
+    monkeypatch.setenv(cfg.source.reddit_client_id_env, "id")
+    monkeypatch.setenv(cfg.source.reddit_client_secret_env, "secret")
+    authenticated = _refusal(RedditSource(cfg), 403)
+    assert "credentials" in authenticated and "prefs/apps" not in authenticated

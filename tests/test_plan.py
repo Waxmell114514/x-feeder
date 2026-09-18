@@ -65,7 +65,9 @@ def test_one_sided_vocabulary_is_dropped_rather_than_searched(issue):
     out = P.balance_stance_terms(judgements, origins_map, issue)
     kept = {j.term for j in out if j.kept}
     assert kept == {"fomc"}
-    assert "balanced" in next(j for j in out if j.term == "hike").reason
+    reason = next(j for j in out if j.term == "hike").reason
+    assert "balanced" in reason
+    assert "hold" in reason and "cut" in reason     # names the thin sides
 
 
 def test_balanced_vocabulary_survives_in_equal_measure(issue):
@@ -142,3 +144,11 @@ def test_a_plan_without_a_judge_keeps_what_a_human_wrote(cfg, issue, jev):
     assert "fomc meeting" in {t.lower() for t in kept}
     assert all("stand-in" in t.reason or "balanced" in t.reason
                for t in plan.terms)
+
+
+def test_google_news_results_are_not_all_called_professional_media(issue):
+    """It indexes press releases and broker blogs too; the outlet domain
+    decides, not the fact that Google carried it."""
+    queries = P.build_queries(None, issue, ["fomc"])
+    news = next(q for q in queries if q.source == "gnews")
+    assert news.tier == ""

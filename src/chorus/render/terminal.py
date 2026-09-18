@@ -76,8 +76,11 @@ def render(snap: Snapshot, issue, alerts: list[Alert] | None = None,
                 console.print(f"        [dim]{q.speaker} ({q.channel}): "
                               f"{q.text[:110].replace(chr(10), ' ')}[/dim]")
         if v.unassigned_share >= 0.15:
-            console.print(f"    [dim]{'未归入任何代表' if zh else 'unassigned'}: "
+            console.print(f"    [dim]{'表了态但无代表' if zh else 'took a side, no bloc'}: "
                           f"{v.unassigned_share:.0%}[/dim]")
+        if v.undecided_share >= 0.15:
+            console.print(f"    [dim]{'未表态' if zh else 'no side taken'}: "
+                          f"{v.undecided_share:.0%}[/dim]")
         console.print()
 
     if snap.notes:

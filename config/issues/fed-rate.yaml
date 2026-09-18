@@ -19,6 +19,10 @@ issues:
     window_hours: 48
     half_life_hours: 24      # a day-old take is worth half a fresh one
     output_lang: zh
+    # The question is about a meeting that has not happened. Coverage of the
+    # last meeting is relevant but is not a forecast, so documents that Jev
+    # judges to be relaying an event are recorded as taking no side.
+    forward_looking: true
 
     # --- the answers a document can take ------------------------------
     # `anchor` is where a side sits on the 0-1 axis. It is used to derive a
@@ -107,9 +111,16 @@ issues:
         - url: "https://www.federalreserve.gov/feeds/press_all.xml"
           tier: official
           channel: federalreserve.gov
-        - url: "https://www.newyorkfed.org/rss/feeds/all"
+        - url: "https://www.federalreserve.gov/feeds/press_monetary.xml"
           tier: official
-          channel: newyorkfed.org
+          channel: federalreserve.gov
+        # A central bank's research blog is not the central bank speaking:
+        # it carries the authors' views, with a disclaimer saying so. That
+        # is `expert`, and the distinction is the sort of thing the tiers
+        # exist to keep straight.
+        - url: "https://libertystreeteconomics.newyorkfed.org/feed/"
+          tier: expert
+          channel: libertystreeteconomics.newyorkfed.org
 
     # --- the panel of virtual opinion leaders --------------------------
     # Left empty on purpose: with no panel, `chorus run` mines one from the

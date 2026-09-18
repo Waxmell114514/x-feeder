@@ -56,20 +56,37 @@ def score(instructions: Any, levels: list[Any]) -> dict:
 # 1. Reading one document against one issue
 # ======================================================================
 SPEAKS_FOR_CRITERIA = {
-    "own_view": "The author is stating their own belief, argument or forecast.",
-    "market_pricing": (
-        "The author is reporting what markets, betting odds, polls or "
-        "forecasters currently price, without saying whether they agree."
-    ),
-    "official_guidance": (
-        "The author is relaying what an official body, spokesperson or "
-        "office has said, without saying whether they agree."
-    ),
-    "reported_data": (
-        "The author is relaying a measurement, data release or event that "
-        "already happened, and takes no side on the question."
-    ),
-    "unclear": "None of the above fits, or the document takes no position at all.",
+    "own_view": {
+        "means": "The author is stating their own belief, argument or forecast.",
+        "examples": ["I think", "my view", "they will", "we believe",
+                     "in my opinion", "expect them to"],
+    },
+    "market_pricing": {
+        "means": "The author is reporting what markets, betting odds, polls "
+                 "or forecasters currently price, without saying whether "
+                 "they agree.",
+        "examples": ["futures imply", "priced at", "odds of", "the market is "
+                     "pricing", "swaps show", "traders see"],
+    },
+    "official_guidance": {
+        "means": "The author is relaying what an official body, spokesperson "
+                 "or office has said, or is that body speaking for itself.",
+        "examples": ["the committee", "we are prepared to", "policy is data "
+                     "dependent", "the chair said", "officials signalled",
+                     "the statement said"],
+    },
+    "reported_data": {
+        "means": "The author is relaying a measurement, data release or an "
+                 "event that already happened, and takes no side on the "
+                 "question.",
+        "examples": ["came in at", "rose to", "fell to", "was released",
+                     "raised rates", "hiked rates", "voted to", "announced "
+                     "a decision"],
+    },
+    "unclear": {
+        "means": "None of the above fits, or the document takes no position "
+                 "at all.",
+    },
 }
 
 INTENSITY_LEVELS = [
@@ -279,30 +296,41 @@ def number_candidates(text: str, limit: int = 12) -> list[dict]:
 # ======================================================================
 # 2. Which tier a channel belongs to
 # ======================================================================
+# Written and rewritten against real venues. The first version said
+# `official` meant "an institution or company speaking for itself", and Jev
+# read that exactly as written: an exchange, an asset manager and a bank
+# were all filed as officialdom, because their own websites are indeed them
+# speaking for themselves. What the tier is *for* is narrower - it is the
+# body whose decision the question turns on - and the criteria now say so.
 TIER_CRITERIA = {
     "official": (
-        "The venue is an institution, agency, company or office speaking for "
-        "itself - its own site, press feed or account - or one of its "
-        "officers publishing in that capacity."
+        "The venue belongs to the body that the question in `question` is "
+        "about: the institution, agency or office that will make the "
+        "decision, or whose action the question asks about. Its own site, "
+        "press feed or account, or one of its officers publishing in that "
+        "capacity. A company's own website is NOT official here unless that "
+        "company is the subject of the question - a bank, broker, exchange "
+        "or asset manager writing about someone else's decision is not."
     ),
     "pro_media": (
         "The venue is a staffed news organisation, or a working journalist "
         "publishing under an outlet's name."
     ),
     "expert": (
-        "The venue is a community, publication or forum whose regular "
-        "contributors work in, or formally study, the field the question is "
-        "about."
+        "The venue is a community, publication, research desk or forum whose "
+        "regular contributors work in, or formally study, the field the "
+        "question is about. Commercial research from a firm that trades in "
+        "or is exposed to the market belongs here, not in official."
     ),
     "crowd": (
-        "The venue is a general-audience forum, aggregator or general-"
-        "interest publication where anyone can take part."
+        "The venue is a general-audience forum, aggregator, content platform "
+        "or general-interest publication where anyone can take part or post."
     ),
 }
 
 
 def tier_state(channel: str, kind: str, samples: list[str], *,
-               max_chars: int = 900) -> dict:
+               question: str = "", max_chars: int = 900) -> dict:
     joined = []
     used = 0
     for s in samples[:5]:
@@ -311,7 +339,13 @@ def tier_state(channel: str, kind: str, samples: list[str], *,
             break
         joined.append(s)
         used += len(s)
-    return {"venue": {"name": channel, "kind": kind, "recent_items": joined}}
+    state = {"venue": {"name": channel, "kind": kind, "recent_items": joined}}
+    if question:
+        # `official` is defined relative to the question - it is the body the
+        # question is about, not any body at all - so the question has to be
+        # in the state for that option to mean anything.
+        state["question"] = question.strip()
+    return state
 
 
 def tier_questions() -> dict:

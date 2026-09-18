@@ -181,6 +181,19 @@ def test_agreement_is_one_when_unanimous_and_zero_when_split():
     assert abs(W.agreement({"hike": 0.5, "hold": 0.5})) < 1e-9
 
 
+def test_agreement_ignores_the_people_who_said_nothing():
+    """Everyone who spoke said the same thing. That is unanimous, however
+    many stayed quiet - how many stayed quiet is a different number."""
+    anchors = {"hike": 0.9, "hold": 0.1}
+    shares = {"hold": 0.3, "unclear": 0.7}
+    assert W.agreement(shares) < 0.2               # conflated
+    assert W.agreement(shares, anchors) == 1.0     # measured over sides
+
+
+def test_agreement_is_zero_when_nobody_took_a_side():
+    assert W.agreement({"unclear": 1.0}, {"hike": 0.9}) == 0.0
+
+
 def test_confidence_rises_with_sample_spread_and_provenance():
     weights = {"a": 1.0}
     opinion = {"a": make_reading("a", speaks_for="own_view")}

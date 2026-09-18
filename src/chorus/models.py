@@ -102,6 +102,9 @@ class ChannelTier(BaseModel):
     method: Literal["allowlist", "query_prior", "heuristic", "jev", "manual"]
     confidence: float = 1.0
     reason: str = ""
+    # The question version that produced a judged tier. A venue judged under
+    # older wording is re-judged rather than trusted forever.
+    version: str = ""
 
 
 # --------------------------------------------------------------------------
@@ -238,7 +241,12 @@ class TierVerdict(BaseModel):
     n_speakers: int = 0
     n_channels: int = 0
     weight: float = 0.0
-    unassigned_share: float = 0.0    # voice that fit no leader on the panel
+    # Two different facts, kept apart on purpose. `unassigned` is voice that
+    # took a side and still fit no leader - a gap in the panel. `undecided`
+    # is voice that took no side at all - a fact about the world, and not
+    # something a better panel would fix.
+    unassigned_share: float = 0.0
+    undecided_share: float = 0.0
     delegates: list[Delegate] = Field(default_factory=list)
 
 

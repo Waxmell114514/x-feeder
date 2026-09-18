@@ -1,13 +1,21 @@
 """Reddit, through the public JSON endpoints.
 
 Any listing on Reddit is also JSON: append `.json` to the path and you get
-the same page a browser gets, with no key, no OAuth, and no per-read
-metering. That is the whole reason this project moved off X - the cost of a
-read went from "a paid tier" to "be polite".
+the same page a browser gets, with no per-read metering. That is the whole
+reason this project moved off X - the cost of a read went from "a paid
+tier" to "be polite".
 
 Polite means: a real User-Agent, one request at a time, and a hard cap on
 pages, because anonymous traffic is throttled per IP and a 429 here costs
 the whole run's coverage, not one document.
+
+**Where you run this matters.** Reddit blocks anonymous JSON reads from
+datacenter address ranges outright - an HTML block page rather than a
+rate-limit response, whatever User-Agent you send. From a home connection
+the keyless path works; from a server it does not, and you need app-only
+credentials (a free "script" app at reddit.com/prefs/apps). Export
+`REDDIT_CLIENT_ID` and `REDDIT_CLIENT_SECRET` and this source switches to
+oauth.reddit.com by itself.
 
 Two shapes are collected:
   * threads, from a search over a subreddit or over the whole site;
@@ -19,11 +27,17 @@ from __future__ import annotations
 
 import datetime as dt
 
+import base64
+import os
+import time
+
 from ..http import HttpError, request
 from ..models import Document, Engagement, PlannedQuery
 from .base import SourceResult, from_epoch
 
-BASE = "https://www.reddit.com"
+PUBLIC = "https://www.reddit.com"
+OAUTH = "https://oauth.reddit.com"
+TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
 
 
 class RedditSource:
@@ -31,8 +45,52 @@ class RedditSource:
 
     def __init__(self, cfg):
         self.cfg = cfg
-        self.headers = {"User-Agent": cfg.source.user_agent,
-                        "Accept": "application/json"}
+        self.client_id = os.environ.get(cfg.source.reddit_client_id_env, "")
+        self.client_secret = os.environ.get(cfg.source.reddit_client_secret_env, "")
+        self._token = ""
+        self._token_expires = 0.0
+
+    # ------------------------------------------------------------------
+    @property
+    def authenticated(self) -> bool:
+        return bool(self.client_id and self.client_secret)
+
+    @property
+    def base(self) -> str:
+        return OAUTH if self.authenticated else PUBLIC
+
+    def _auth_headers(self) -> dict[str, str]:
+        headers = {"User-Agent": self.cfg.source.user_agent,
+                   "Accept": "application/json"}
+        if not self.authenticated:
+            return headers
+        headers["Authorization"] = f"Bearer {self._access_token()}"
+        return headers
+
+    def _access_token(self) -> str:
+        """App-only token, cached until shortly before it expires."""
+        if self._token and time.time() < self._token_expires:
+            return self._token
+        basic = base64.b64encode(
+            f"{self.client_id}:{self.client_secret}".encode()).decode()
+        payload = request(
+            "POST", TOKEN_URL,
+            headers={"Authorization": f"Basic {basic}",
+                     "User-Agent": self.cfg.source.user_agent},
+            form_body={"grant_type": "client_credentials"},
+            timeout=self.cfg.source.request_timeout, retries=1,
+        )
+        self._token = payload.get("access_token", "")
+        if not self._token:
+            raise RuntimeError(
+                "Reddit returned no access token; check "
+                f"{self.cfg.source.reddit_client_id_env} and "
+                f"{self.cfg.source.reddit_client_secret_env}."
+            )
+        # Tokens last an hour or a day depending on the app; renew early.
+        self._token_expires = time.time() + max(60.0, float(
+            payload.get("expires_in", 3600)) - 120.0)
+        return self._token
 
     # ------------------------------------------------------------------
     def fetch(self, query: PlannedQuery, since: dt.datetime) -> SourceResult:
@@ -59,19 +117,13 @@ class RedditSource:
             if after:
                 params["after"] = after
             try:
-                payload = request("GET", BASE + path, params=params,
-                                  headers=self.headers,
+                payload = request("GET", self.base + path, params=params,
+                                  headers=self._auth_headers(),
                                   timeout=self.cfg.source.request_timeout,
                                   retries=2)
             except HttpError as e:
-                if e.status in (403, 429):
-                    # Anonymous access is throttled per IP and blocked outright
-                    # from some hosts. Say which, because the fix differs.
-                    raise RuntimeError(
-                        f"Reddit refused the request ({e.status}). Anonymous JSON "
-                        f"access is rate-limited per IP; slow down, or set a "
-                        f"descriptive source.user_agent."
-                    ) from e
+                if e.status in (401, 403, 429):
+                    raise RuntimeError(_refusal(self, e.status)) from e
                 raise
             children = (payload.get("data") or {}).get("children") or []
             for child in children:
@@ -102,9 +154,9 @@ class RedditSource:
             native = thread.id.split(":", 1)[1]
             try:
                 payload = request(
-                    "GET", f"{BASE}/comments/{native}.json",
+                    "GET", f"{self.base}/comments/{native}.json",
                     params={"limit": 40, "depth": 1, "sort": "top", "raw_json": 1},
-                    headers=self.headers,
+                    headers=self._auth_headers(),
                     timeout=self.cfg.source.request_timeout, retries=1,
                 )
             except (HttpError, RuntimeError):
@@ -119,6 +171,25 @@ class RedditSource:
 
 
 # ----------------------------------------------------------------------
+def _refusal(source: "RedditSource", status: int) -> str:
+    """Say what actually went wrong, because the two cases need different fixes."""
+    if source.authenticated:
+        return (f"Reddit refused an authenticated request ({status}). Check the "
+                f"credentials in {source.cfg.source.reddit_client_id_env} / "
+                f"{source.cfg.source.reddit_client_secret_env}, and slow down "
+                f"if this is a 429.")
+    return (
+        f"Reddit refused the request ({status}) and no credentials are set. "
+        f"Anonymous JSON reads are blocked outright from datacenter address "
+        f"ranges, whatever User-Agent you send - a better agent string will "
+        f"not help. Create a free script app at "
+        f"https://www.reddit.com/prefs/apps and export "
+        f"{source.cfg.source.reddit_client_id_env} and "
+        f"{source.cfg.source.reddit_client_secret_env}, or run from a "
+        f"residential connection."
+    )
+
+
 def _thread_document(data: dict, tag: str) -> Document | None:
     if not data.get("id") or data.get("stickied"):
         return None
