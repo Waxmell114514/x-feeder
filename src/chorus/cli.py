@@ -499,7 +499,7 @@ def cmd_demo(args) -> int:
     if args.fresh and pathlib.Path(cfg.db_path).exists():
         pathlib.Path(cfg.db_path).unlink()
 
-    issue_id = next(iter(cfg.issues))
+    issue_id = _resolve_issue(cfg, getattr(args, "issue", None))
     log(f"[bold cyan]chorus demo[/bold cyan] · issue [bold]{issue_id}[/bold] · "
         f"{'live Jev' if args.live else 'offline'}\n")
     with Store(cfg.db_path) as store:
@@ -606,6 +606,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--html-path", dest="html_path")
 
     s = add("demo", cmd_demo, "end-to-end on bundled data, no keys needed")
+    s.add_argument("--issue")
     s.add_argument("--workdir", default=".chorus/demo")
     s.add_argument("--live", action="store_true", help="use the real Jev API")
     s.add_argument("--fresh", action="store_true", help="drop the demo database first")

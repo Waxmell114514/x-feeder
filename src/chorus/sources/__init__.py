@@ -7,12 +7,14 @@ from .gnews import GoogleNewsSource
 from .hackernews import HackerNewsSource
 from .reddit import RedditSource
 from .rss import RssSource
+from .v2ex import V2exSource
 
 BUILDERS = {
     "reddit": RedditSource,
     "hackernews": HackerNewsSource,
     "gnews": GoogleNewsSource,
     "rss": RssSource,
+    "v2ex": V2exSource,
     "fixture": FixtureSource,
 }
 
@@ -32,4 +34,4 @@ def build_sources(cfg) -> dict[str, Source]:
 
 __all__ = ["Source", "SourceResult", "build_sources", "stable_id",
            "FixtureSource", "RedditSource", "HackerNewsSource",
-           "GoogleNewsSource", "RssSource", "BUILDERS"]
+           "GoogleNewsSource", "RssSource", "V2exSource", "BUILDERS"]

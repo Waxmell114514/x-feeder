@@ -251,6 +251,20 @@ def _reasons(leader: Leader, docs: list[Document]) -> list[str]:
     trade is fluency for the ability to check it.
     """
     texts = textutil.mining_corpus(docs)
+
+    # In Chinese an n-gram is the wrong unit: with no segmenter it cuts
+    # words in half, and "码能力已经" is not something anybody said. A
+    # clause has punctuation for boundaries, so that is what gets quoted.
+    if any(textutil.is_cjk_text(t) for t in texts):
+        picked = textutil.mine_clauses(
+            texts, limit=MAX_REASONS,
+            # What this bloc is supposed to hold, so the clauses quoted are
+            # the ones stating it rather than the ones that rambled longest.
+            about=f"{leader.label} {leader.label_zh} {leader.description}",
+        )
+        if picked:
+            return picked
+
     mined = textutil.mine_phrases(
         texts, min_docs=max(2, len(texts) // 4) if len(texts) > 4 else 1,
         max_words=5, min_words=2, limit=MAX_REASONS * 6,

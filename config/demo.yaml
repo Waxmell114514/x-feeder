@@ -4,8 +4,11 @@ db_path: .chorus/demo/demo.db
 output_dir: .chorus/demo
 output_lang: zh
 
+# Only the issue the bundled documents are about. A glob here would let
+# `chorus demo` pick up whichever issue file sorts first and run it against
+# a fixture that has nothing to do with it.
 issue_files:
-  - "issues/*.yaml"
+  - "issues/fed-rate.yaml"
 
 tiers:
   official:
@@ -16,17 +19,22 @@ tiers:
     blend_weight: 0.25
     engagement_weighting: 0.50
     channels: [reuters.com, apnews.com, bloomberg.com, wsj.com, cnbc.com,
-               ft.com, marketwatch.com]
+               ft.com, marketwatch.com,
+               finance.sina.com.cn, news.sina.com.cn, thepaper.cn, jiemian.com,
+               cls.cn, chinanews.com.cn, dw.com, theinitium.com,
+               wallstreetcn.com]
   expert:
     blend_weight: 0.20
     engagement_weighting: 0.80
     channels: [r/AskEconomics, r/badeconomics, r/econmonitor,
-               libertystreeteconomics.newyorkfed.org]
+               libertystreeteconomics.newyorkfed.org,
+               huxiu.com, 36kr.com, jiqizhixin.com, infoq.cn, eet-china.com,
+               leiphone.com]
   crowd:
     blend_weight: 0.25
     engagement_weighting: 1.00
     channels: [r/economics, r/investing, r/personalfinance, r/news,
-               news.ycombinator.com]
+               news.ycombinator.com, v2ex.com, blog.csdn.net, jianshu.com]
 
 weighting:
   engagement_cap: 4.0

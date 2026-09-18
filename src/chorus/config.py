@@ -98,6 +98,22 @@ class GoogleNewsPlan(BaseModel):
     default_tier: str = ""
 
 
+class V2exPlan(BaseModel):
+    """V2EX, via the public sov2ex full-text index.
+
+    The Chinese-language crowd source, and close to the only open one left:
+    Weibo, Zhihu and Tieba have no public search, and the RSS bridges that
+    stood in for them have closed. It is one forum of one profession, which
+    makes it a real Chinese crowd rather than the Chinese crowd - fine for a
+    question about software work, useless for one about mortgages.
+    """
+
+    enabled: bool = False
+    node: str = ""                     # restrict to one V2EX node
+    max_results: int = 50
+    tier: str = "crowd"
+
+
 class FeedPlan(BaseModel):
     """One RSS/Atom feed, polled whole and filtered locally.
 
@@ -117,6 +133,7 @@ class IssueSources(BaseModel):
     reddit: RedditPlan = Field(default_factory=RedditPlan)
     hackernews: HackerNewsPlan = Field(default_factory=HackerNewsPlan)
     gnews: GoogleNewsPlan = Field(default_factory=GoogleNewsPlan)
+    v2ex: V2exPlan = Field(default_factory=V2exPlan)
     feeds: list[FeedPlan] = Field(default_factory=list)
 
 

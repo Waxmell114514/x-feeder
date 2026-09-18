@@ -301,6 +301,18 @@ def build_queries(cfg, issue, terms: list[str]) -> list[PlannedQuery]:
                 options={"tags": "comment"},
             ))
 
+    if src.v2ex.enabled and top:
+        # sov2ex is a single-field full-text search: OR syntax does nothing,
+        # and several words narrow rather than widen. One query per term.
+        for term in top[:3]:
+            out.append(PlannedQuery(
+                source="v2ex", tier=src.v2ex.tier, query=term, terms=[term],
+                max_results=src.v2ex.max_results,
+                tag=_tag(issue, "v2ex", term),
+                options={"node": src.v2ex.node} if src.v2ex.node else {},
+                note="topics only; the argument in the replies is not indexed",
+            ))
+
     if src.gnews.enabled and top:
         days = max(1, min(30, round(issue.window_hours / 24)))
         out.append(PlannedQuery(

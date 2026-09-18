@@ -57,6 +57,18 @@ tiers:
       - axios.com
       - caixin.com
       - yicai.com
+      # 中文媒体。分层的依据是"有没有编辑部"，不是立场。
+      - finance.sina.com.cn
+      - news.sina.com.cn
+      - thepaper.cn
+      - jiemian.com
+      - cls.cn
+      - stcn.com
+      - 21jingji.com
+      - chinanews.com.cn
+      - dw.com
+      - theinitium.com
+      - wallstreetcn.com
 
   expert:
     blend_weight: 0.20
@@ -70,6 +82,13 @@ tiers:
       # An institution's research blog carries its authors' views, not the
       # institution's - which is a different tier from its press feed.
       - libertystreeteconomics.newyorkfed.org
+      # 中文的行业分析媒体：有署名作者、做行业判断，不是通稿。
+      - huxiu.com
+      - 36kr.com
+      - jiqizhixin.com
+      - infoq.cn
+      - eet-china.com
+      - leiphone.com
 
   crowd:
     blend_weight: 0.25
@@ -82,6 +101,11 @@ tiers:
       - r/news
       - r/worldnews
       - news.ycombinator.com
+      # V2EX：中文技术社区，是这套系统在中文里唯一能公开检索到的大众场所。
+      # CSDN / 简书是内容平台，谁都能发，同样归大众。
+      - v2ex.com
+      - blog.csdn.net
+      - jianshu.com
 
 # ----------------------------------------------------------------------
 # Anti-manipulation. Every number here is a policy choice, which is why it

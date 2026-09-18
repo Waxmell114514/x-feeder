@@ -303,3 +303,9 @@ def test_one_tier_with_a_reading_is_not_the_tiers_agreeing(cfg, issue):
                                     n_readings=3)
     assert "大众讨论" in one and "一致" not in one
     assert "一致" in many
+
+
+def test_the_demo_config_loads_only_the_issue_it_has_data_for(cfg):
+    """A glob in the demo config lets `chorus demo` pick whichever issue
+    file sorts first and run it against an unrelated fixture."""
+    assert set(cfg.issues) == {"fed-rate"}
