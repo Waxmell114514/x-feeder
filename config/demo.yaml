@@ -1,32 +1,61 @@
-# Config used by `xfeeder demo`: same pipeline, fixture data, no keys.
-db_path: .xfeeder/demo/demo.db
-output_dir: .xfeeder/demo
+# Config used by `chorus demo`: the same pipeline over bundled documents,
+# with the keyword stand-in in place of Jev. No key, no network.
+db_path: .chorus/demo/demo.db
+output_dir: .chorus/demo
 output_lang: zh
 
+# Only the issue the bundled documents are about. A glob here would let
+# `chorus demo` pick up whichever issue file sorts first and run it against
+# a fixture that has nothing to do with it.
 issue_files:
-  - "issues/*.yaml"
+  - "issues/fed-rate.yaml"
 
-cohorts:
-  official:  {blend_weight: 0.35, authority_weighting: 1.0, engagement_weighting: 0.15,
-              handles: [federalreserve, nyfed, stlouisfed]}
-  pro_media: {blend_weight: 0.25, authority_weighting: 0.85, engagement_weighting: 0.5,
-              handles: [Reuters, business, NickTimiraos, Caixin]}
-  en_kol:    {blend_weight: 0.15, authority_weighting: 0.6, min_followers: 20000,
-              handles: [biancoresearch, MacroAlf_demo, RatesTrader_demo]}
-  cn_kol:    {blend_weight: 0.10, authority_weighting: 0.6, min_followers: 10000,
-              handles: [hongguan_laowang, zhaisheng_note, meilian_watch]}
-  crowd:     {blend_weight: 0.15, authority_weighting: 0.0, max_followers: 20000}
+tiers:
+  official:
+    blend_weight: 0.30
+    engagement_weighting: 0.10
+    channels: [federalreserve.gov, newyorkfed.org, stlouisfed.org, bls.gov]
+  pro_media:
+    blend_weight: 0.25
+    engagement_weighting: 0.50
+    channels: [reuters.com, apnews.com, bloomberg.com, wsj.com, cnbc.com,
+               ft.com, marketwatch.com,
+               finance.sina.com.cn, news.sina.com.cn, thepaper.cn, jiemian.com,
+               cls.cn, chinanews.com.cn, dw.com, theinitium.com,
+               wallstreetcn.com]
+  expert:
+    blend_weight: 0.20
+    engagement_weighting: 0.80
+    channels: [r/AskEconomics, r/badeconomics, r/econmonitor,
+               libertystreeteconomics.newyorkfed.org,
+               huxiu.com, 36kr.com, jiqizhixin.com, infoq.cn, eet-china.com,
+               leiphone.com]
+  crowd:
+    blend_weight: 0.25
+    engagement_weighting: 1.00
+    channels: [r/economics, r/investing, r/personalfinance, r/news,
+               news.ycombinator.com, v2ex.com, blog.csdn.net, jianshu.com]
+
+weighting:
+  engagement_cap: 4.0
+  speaker_cap_pct: 0.05
+  channel_cap_pct: 0.35
+  duplicate_damping: true
+  thin_document_chars: 140
+  thin_document_penalty: 0.6
 
 thresholds:
-  cluster_similarity: 0.55
-  min_cluster_share: 0.08
-  max_delegates_per_cohort: 3
+  panel_size: 6
+  min_leader_share: 0.07
+  max_delegates_per_tier: 3
+  phrase_similarity: 0.58
+  min_phrase_docs: 2
   consensus_shift_alert: 0.08
   divergence_alert: 0.15
 
-llm:
+jev:
   offline: true
-  cache_dir: .xfeeder/demo/llm-cache
+  cache_dir: .chorus/demo/jev-cache
 
 source:
   provider: fixture

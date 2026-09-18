@@ -1,0 +1,149 @@
+# 一个中文议题。
+#
+# 和 fed-rate 的区别不只是语言。中文的公开信源结构和英文完全不同：
+#   * 微博、知乎、贴吧都没有可公开调用的检索接口，RSS 桥也基本关停了；
+#   * 政府网站不发 RSS，`official` 这一层在中文语境下往往是空的；
+#   * 能拿到的、且确实是"大众"而不是"编辑部"的，主要是 V2EX（sov2ex 公开检索）。
+# 所以这个议题挑的题目本身就迁就了信源：问的是软件从业者的事，
+# 而 V2EX 恰好是软件从业者的地方。这是选题迁就信源，不是信源覆盖了选题。
+issues:
+  - id: ai-jobs-cn
+    title: "Whether AI coding tools are cutting programmer jobs in China"
+    title_zh: "AI 编程工具正在减少中国程序员岗位吗"
+    # 问题和判据都用中文写。Jev 是英文优先的（官方文档明说 CJK 精度更低），
+    # 所以这里同时提供了一个英文判据的变体供对照，见 README 的对比一节。
+    question: >
+      AI 编程工具是否正在明显减少中国的程序员岗位？
+    background: >
+      2024 年以来国内互联网公司普遍缩招，同时 AI 编程工具在开发流程中快速普及。
+      两件事同时发生，但因果关系有争议：一种说法是 AI 直接替代了初级开发，
+      另一种说法是岗位减少主要来自行业周期与降本，AI 只是被用来解释它。
+    # 30 天。这个数字是量出来的，不是拍的：7 天窗口下 V2EX 上真正在谈
+    # 这个问题的帖子只有 10 篇上下（74 篇里 13 篇相关）。中文可公开检索
+    # 的池子就是这么浅，窗口得比英文财经议题宽得多才凑得出一个样本。
+    window_hours: 720
+    half_life_hours: 168
+    output_lang: zh
+    forward_looking: false     # 问的是"正在发生"，所以报道就是答案，不是预测
+
+    axis:
+      - id: shrinking
+        label: "jobs are shrinking because of AI"
+        label_zh: "岗位在减少"
+        anchor: 0.85
+        description: >
+          这段文字认为 AI 编程工具正在实际减少程序员岗位——包括裁员、缩招、
+          初级岗位消失、或者把"以后不需要这么多人"当作既定事实来讲。
+        keywords: ["裁员", "失业", "被优化", "岗位减少", "缩招", "不招人",
+                   "替代", "取代", "饱和", "被 AI 取代", "找不到工作", "转行"]
+      - id: holding
+        label: "jobs are not meaningfully shrinking"
+        label_zh: "岗位没有明显减少"
+        anchor: 0.15
+        description: >
+          这段文字认为 AI 没有真的减少岗位——包括"AI 只是工具/只是提效"、
+          "需求还在甚至更多"、"缺的是人而不是岗位"、
+          或者把岗位减少归因于行业周期而不是 AI。
+        keywords: ["只是工具", "提效", "不会取代", "还是缺人", "需求还在",
+                   "门槛提高", "反而更需要", "周期问题", "跟 AI 无关",
+                   "降本", "跟 AI 没关系"]
+      - id: unclear
+        label: "no clear position"
+        label_zh: "态度不明"
+
+    quantity:
+      id: p_shrinking
+      name: "P(AI 正在明显减少中国程序员岗位)"
+      description: >
+        发言者赋予"AI 正在明显减少中国程序员岗位"这件事的可信度
+
+    entities: ["程序员", "AI 编程", "互联网大厂"]
+    # 这几个词是试出来的。"AI 编程 工具"在 sov2ex 上命中 2.2 万条，
+    # 绝大多数是在聊工具本身而不是聊岗位——Jev 判它"切题"没错，
+    # 错在它不知道这个检索接口有多松。取而代之的是把"岗位"一侧写死。
+    terms:
+      - "程序员 就业"
+      - "程序员 裁员"
+      - "AI 替代 程序员"
+      - "AI 取代 程序员"
+      - "程序员 失业"
+      - "初级开发 岗位"
+
+    sources:
+      # V2EX：能公开检索到的中文技术社区。它是一个真实的中文大众样本，
+      # 但不是"中文大众"——一个行业的一个论坛而已。
+      v2ex:
+        enabled: true
+        max_results: 50
+      # Google News 的中文检索覆盖了几乎所有中文媒体，而且是**检索**，
+      # 不是整份 feed 本地过滤——这是中文路径上最强的一环。
+      gnews:
+        enabled: true
+        hl: zh-CN
+        gl: CN
+        ceid: "CN:zh-Hans"
+        max_results: 60
+      reddit:
+        enabled: false         # 中文内容在 Reddit 上太薄，不值一次请求
+      hackernews:
+        enabled: false
+      feeds:
+        # 德国之声中文版是少数还在正常发 RSS 的中文媒体之一。
+        - url: "https://rss.dw.com/rdf/rss-chi-all"
+          tier: pro_media
+          channel: dw.com
+          match_terms: true
+
+    # 这个面板是**手写的**，不是挖出来的——这件事值得说明，因为它是这个
+    # 中文议题最大的一个发现。
+    #
+    # 挖掘的前提是"同一个论点被好几个人用差不多的话说出来"。英文的
+    # Reddit 和新闻满足这个前提；这里的 11 篇 V2EX 长帖不满足：每个人都在
+    # 用自己的话讲，"护城河归零"和"护城河干涸"是一个论点的两种写法，而
+    # 中文没有空格，无监督的字级 n-gram 只会挖出"码能力""力已经"这种被
+    # 切断的词。Jev 把这些候选全部判为"不是一个立场"（0.11-0.49），判得对。
+    #
+    # 所以中文议题的正确做法是：跑一轮，**读一遍原文**，然后自己把阵营写下来。
+    # 下面这五个是照着真实语料写的，每一条都能在文档里找到对应的人。
+    panel:
+      - id: shrinking--moat-gone
+        label: "the moat has dried up"
+        label_zh: "岗位在减少·护城河没了"
+        stance: shrinking
+        description: >
+          这段文字认为程序员过去赖以立足的东西（经验、企业知识、编码能力本身）
+          已经被 AI 抹平，所以岗位会减少。典型说法是"护城河归零/干涸"、
+          "编码能力已经可以完全被 AI 替代"。
+        flip_on: "出现一类 AI 明显做不了、且需要大量人力的新开发工作"
+      - id: shrinking--commodity-coders
+        label: "the replaceable majority"
+        label_zh: "岗位在减少·被取代的是大多数"
+        stance: shrinking
+        description: >
+          这段文字认为被取代的是大量低门槛、重复性的开发岗位——"电子民工"、
+          切图仔、初级 CRUD——而不是全部程序员。
+        flip_on: "初级岗位的招聘量回到 AI 普及之前的水平"
+      - id: shrinking--market-is-bad
+        label: "the market speaks for itself"
+        label_zh: "岗位在减少·行情就是证据"
+        stance: shrinking
+        description: >
+          这段文字用亲身经历或身边的招聘行情来论证岗位在减少——投了多少份
+          简历、朋友八年经验只拿到多少薪水、周围失业的人越来越多。
+        flip_on: "同等经验的薪资与 offer 数量明显回升"
+      - id: holding--only-a-tool
+        label: "it is only a tool"
+        label_zh: "没有明显减少·AI 只是工具"
+        stance: holding
+        description: >
+          这段文字认为 AI 只是提效工具，被淘汰的是不肯进步的人而不是岗位，
+          或者认为同行把 AI 的作用看得太重了。
+        flip_on: "出现一家规模化公司公开以 AI 替代为由裁掉整条开发线"
+      - id: holding--work-did-not-shrink
+        label: "the work did not shrink"
+        label_zh: "没有明显减少·活儿没变少"
+        stance: holding
+        description: >
+          这段文字认为 AI 变强之后工作量并没有减少，甚至更累更碎——需求
+           被放大、任务变多，所以岗位并没有因此消失。
+        flip_on: "开发团队规模在需求不变的前提下持续缩减"

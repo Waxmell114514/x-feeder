@@ -1,10 +1,9 @@
 [project]
-name = "xfeeder"
-version = "0.1.0"
-description = "Supernova-Era consensus engine: turn X/Twitter noise into a small set of synthetic opinion leaders per issue."
+name = "chorus"
+version = "0.2.0"
+description = "Turn public opinion on one question into a handful of virtual opinion leaders, using public sources and TypeSafe's Jev."
 requires-python = ">=3.10"
 dependencies = [
-    "anthropic>=1.0.0",
     "pydantic>=2.6",
     "PyYAML>=6.0",
     "numpy>=1.26",
@@ -16,7 +15,7 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [project.scripts]
-xfeeder = "xfeeder.cli:main"
+chorus = "chorus.cli:main"
 
 [build-system]
 requires = ["setuptools>=68"]
@@ -26,4 +25,4 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-xfeeder = ["render/templates/*.html"]
+chorus = ["render/templates/*.html"]

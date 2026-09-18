@@ -1,8 +1,14 @@
 # 示例输出
 
-`sample-report.html` 是 `xfeeder demo` 的产物：内置的 66 条示例数据，跑完整条管线，
-**离线模式**（所有统计是真的，句子是模板套出来的）。直接用浏览器打开即可。
+`sample-report.html` 是 `chorus demo --live` 的产物：内置的 54 份示例文档，
+跑完整条管线，**判断来自真实的 Jev**（一轮 99 次请求 / 428 个问题 / 12.3 万输入
+token，约 $0.0052）。直接用浏览器打开即可。
 
-想看真实语言合成的版本，配好 `ANTHROPIC_API_KEY` 后跑：
+不配 `TYPESAFE_API_KEY` 也能跑：
 
-    xfeeder demo --live --fresh
+    chorus demo
+
+那会走离线替身——统计完全一样，判断退化成关键词匹配。两者的差距值得看一眼：
+替身分不出"路透报道期货定价 38%"和"路透认为会加息"，也读不懂
+"RI: 'the Fed has to hike'" 这种标题在反驳它引用的观点，而这两件事恰好是
+Jev 最该被用来干的活。
